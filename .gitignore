@@ -1,8 +1,8 @@
 # Personalised
-documents/*
 data/*
 env/
-.idea/
+.idea/*
+.idea\*
 .DS_Store
 *.pyc
 

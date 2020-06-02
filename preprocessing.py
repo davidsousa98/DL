@@ -18,7 +18,7 @@ def get_files_zip(zip):
             list = myzip.namelist()
     return list
 
-def append_csv(files):
+def append_files(files):
     """
         Function that reads and appends files inside the .zip folders.
 
@@ -46,59 +46,44 @@ def append_csv(files):
 
 
 # Reading files from zip without extracting them
+get_files_zip('game_stats')
 get_files_zip('league_table')
 
-#Append all files into one sigle DataFrame
-import lxml
-df_stats_full = append_csv(get_files_zip('game_stats'))
-df_table_full = append_csv(get_files_zip('league_table'))
+# Append all files into one single DataFrame
+df_stats_full = append_files(get_files_zip('game_stats'))
+df_table_full = append_files(get_files_zip('league_table'))
 
-#Filter with the needed variables:
-df_stats = df_stats_full[['Div','Date','HomeTeam','AwayTeam','FTHG','FTAG','HTHG','HTAG','HS','AS','HST','AST','HF','AF','HC','AC','HY','AY',
-         'HR','AR']]
+# Slice DataFrames
+df_stats = df_stats_full[['Div','Date','HomeTeam','AwayTeam','FTHG','FTAG','HTHG','HTAG','HS','AS','HST','AST','HF',
+                          'AF','HC','AC','HY','AY','HR','AR']]
 
 df_table = df_table_full[['Squad','GDiff', 'Pts', 'Season']]
 
-# Check missings
+###########################################  MISSING VALUES TREATMENT  #################################################
+
+# Check for missing values
 missings_stats = df_stats.isnull().sum()
 missings_table = df_table.isnull().sum()
-
 
 nulls_stats = df_stats.loc[df_stats.HF.isnull()]
 nulls_table = df_table.loc[df_table.Squad.isnull()]
 
-# Drop rows with too many nulls
-
+# Drop rows with exceeded number of nulls
 df_stats = df_stats[df_stats['HomeTeam'].notna()]
 df_stats = df_stats.loc[df_stats['HS'].notna()]
 
 df_table = df_table[df_table['Squad'].notna()]
 
-# Groupby
-df_grouped = df_stats.groupby('HomeTeam').count()
-# Append all files into one sigle DataFrame
-df_full = append_csv(get_files_zip()).reset_index()
-
-# Slice DataFrame
-df = df_full[['Div', 'Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG', 'HTHG', 'HTAG', 'HS', 'AS', 'HST',
-              'AST', 'HF', 'AF', 'HC', 'AC', 'HY', 'AY', 'HR', 'AR']]
-
-# Missing values treatment
-# Drop rows with too many nulls
-null = df.loc[df.HF.isnull()]
-df = df[df['HomeTeam'].notna()]
-df = df.loc[df['HS'].notna()]
-missing_values = df.isnull().sum()
-
-# Filling missing values based on the most similar employee
-df.reset_index(inplace=True, drop=True)
-temp_df = df.drop(columns=["Div", "Date", "HomeTeam", "AwayTeam"])
+# Filling missing values based on the most similar matches
+df_stats.reset_index(inplace=True, drop=True)
+temp_df = df_stats.drop(columns=["Div", "Date", "HomeTeam", "AwayTeam"])
 imputer = KNNImputer(n_neighbors=5)
 filled_df = pd.DataFrame(imputer.fit_transform(temp_df))
 filled_df.columns = temp_df.columns
-filled_df = pd.concat([filled_df, df["Div"], df["Date"], df["HomeTeam"], df["AwayTeam"]], axis=1)
+filled_df = pd.concat([filled_df, df_stats["Div"], df_stats["Date"], df_stats["HomeTeam"], df_stats["AwayTeam"]], axis=1)
 
-# Transform and create variables
+##################################  TRANSFORM AND CREATE VARIABLES  ####################################################
+
 # Season variable
 filled_df['year'] = pd.DatetimeIndex(filled_df['Date']).year
 
@@ -132,6 +117,10 @@ filled_df.loc[filled_df["Div"] == "I1", "League"] = "Serie A"
 filled_df.loc[filled_df["Div"] == "T1", "League"] = "Super Lig"
 filled_df.loc[filled_df["Div"] == "P1", "League"] = "Liga NOS"
 filled_df.drop(columns="Div", inplace=True)
+
+
+# Groupby
+df_grouped = df_stats.groupby('HomeTeam').count()
 
 
 
