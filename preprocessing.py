@@ -25,7 +25,7 @@ get_files_zip()
 df_full = append_csv(get_files_zip()).reset_index()
 
 #Filter with the needed variables:
-df = df_full[['Date','HomeTeam','AwayTeam','FTHG','FTAG','HTHG','HTAG','HS','AS','HST','AST','HF','AF','HC','AC','HY','AY',
+df = df_full[['Div','Date','HomeTeam','AwayTeam','FTHG','FTAG','HTHG','HTAG','HS','AS','HST','AST','HF','AF','HC','AC','HY','AY',
          'HR','AR']]
 
 #Drop rows with too many nulls
