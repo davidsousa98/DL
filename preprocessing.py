@@ -14,10 +14,10 @@ def get_files_zip(zip):
         :param zip: name of the zip file.
     """
     if zip == 'game_stats':
-        with zp.ZipFile("./data/Game_stats.zip") as myzip:
+        with zp.ZipFile(r"./data/Game_stats.zip") as myzip:
             list = myzip.namelist()
     elif zip =='league_table':
-        with zp.ZipFile("./data/league_table.zip") as myzip:
+        with zp.ZipFile(r"./data/league_table.zip") as myzip:
             list = myzip.namelist()
     return list
 
@@ -130,6 +130,57 @@ df_table.drop(columns=["Pts", "GDiff", "MP"], inplace=True)
 
 # Groupby
 df_grouped = df_stats.groupby('HomeTeam').count()
+# Groupby HomeTeam and AwayTeam
+df_home = filled_df.groupby(['HomeTeam', 'Season']).mean()
+df_away = filled_df.groupby(['AwayTeam', 'Season']).mean()
+
+#Change the names for concatenation purposes
+df_away_copy = df_away.copy()
+df_away_copy.columns = ['FTAG','FTHG','HTAG','HTHG','AS','HS','AST','HST','AF','HF','AC','HC',
+                        'AY','HY','AR','HR']
+
+
+#Average Home and Away games to simplify data and have info by game
+df_join = pd.concat([df_home,df_away_copy], axis = 1)
+df_join = (df_join.groupby(lambda x:x, axis=1).sum())/2
+
+
+# Add the column League to the new df
+filled_df_sliced = filled_df[['HomeTeam','League']].drop_duplicates()
+df_join= df_join.reset_index(level=[0,1])
+df_join = pd.merge(df_join,filled_df_sliced,on = 'HomeTeam')
+
+
+# Ensure that the clubs have the same name in both DataFrames
+
+df_home = filled_df.groupby(['HomeTeam', 'Season']).mean().reset_index()
+df_away = filled_df.groupby(['AwayTeam', 'Season']).mean().reset_index()
+
+# Check Team Names
+# df_table['Team_Name'] = df_table['Squad'] + "/" + df_table['Season']
+# df_home['Team_Name'] = df_home['HomeTeam'] + "/" + df_home['Season']
+# df_away['Team_Name'] = df_away['AwayTeam'] + "/" + df_away['Season']
+
+table_team_names = df_table.Squad.unique()
+home_team_names = df_home.HomeTeam.unique()
+table_team_names_df = pd.DataFrame(sorted(table_team_names), columns=['table_names'])
+home_team_names_df = pd.DataFrame(sorted(home_team_names), columns=['home_names'])
+
+diff_names = []
+for hn in table_team_names:
+    if hn not in home_team_names:
+        diff_names.append(hn)
+diff_names = pd.DataFrame(diff_names)
+
+
+home_team_names_df.to_csv(r'/data/home_names.csv')
+drop_names = ['Den Haag', 'AEK', None, None, None, 'Akhisar Belediyespor', 'Ankaragucu',
+              'Apollon', None, 'Asteras Tripolis', 'Ath Bilbao', 'Ath Madrid', 'Ath Madrid',
+              'Erzurum BB', None, 'Buyuksehyr', 'Besiktas', 'Sp Braga', None, 'Cardiff', 'Celta',
+              'Darmstadt', 'Graafschap', None, 'Fortuna Dusseldorf', 'Ein Frankfurt', 'FC Emmen',
+              None, None, 'Espanol', 'Fenerbahce', 'For Sittard', None, 'Gaziantep', 'Ajaccio GFCO',
+              ]
+new_names = []
 
 
 ########################################## OUTLIERS RECOGNITION ########################################################
@@ -189,15 +240,3 @@ X = df[variables]
 y = df['Deceased']
 
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=15, shuffle=True)
-
-
-
-
-
-
-
-
-
-
-
-
