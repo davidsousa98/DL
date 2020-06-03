@@ -312,8 +312,9 @@ scaler_X_train = pd.DataFrame(scaler.transform(X_train), columns=X_train.columns
 scaler_X_test = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns)
 
 # Feature Selection
-variables = ['Goals_against','Corners_against','Corners_p/goal','Shots_p/goal','Shots_target_against','Fouls',
-             'Shots_precision_against','Shots','Total_cards_against','Shots_target','Corners','Corners_p/goal_against', 'Corners_p/goal']
+variables = ['Goals_against','Corners_against','Corners_p/goal','Shots_p/goal','Shots_target_against',
+             'Fouls','Shots_precision_against','Shots','Total_cards_against','Shots_target','Corners',
+             'Corners_p/goal_against', 'Corners_p/goal']
 
 scaler_X_train = scaler_X_train[variables]
 scaler_X_test = scaler_X_test[variables]
