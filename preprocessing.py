@@ -11,10 +11,10 @@ def get_files_zip(zip):
         :param zip: name of the zip file.
     """
     if zip == 'game_stats':
-        with zp.ZipFile("./data/Game_stats.zip") as myzip:
+        with zp.ZipFile(r"./data/Game_stats.zip") as myzip:
             list = myzip.namelist()
     elif zip =='league_table':
-        with zp.ZipFile("./data/league_table.zip") as myzip:
+        with zp.ZipFile(r"./data/league_table.zip") as myzip:
             list = myzip.namelist()
     return list
 
@@ -120,18 +120,33 @@ filled_df.drop(columns="Div", inplace=True)
 
 
 # Groupby
-df_grouped = df_stats.groupby('HomeTeam').count()
+df_away = filled_df.groupby(['AwayTeam', 'Season']).mean().reset_index()
+df_home = filled_df.groupby(['HomeTeam', 'Season']).mean().reset_index()
+
+# Check Team Names
+# df_table['Team_Name'] = df_table['Squad'] + "/" + df_table['Season']
+# df_home['Team_Name'] = df_home['HomeTeam'] + "/" + df_home['Season']
+# df_away['Team_Name'] = df_away['AwayTeam'] + "/" + df_away['Season']
+
+table_team_names = df_table.Squad.unique()
+home_team_names = df_home.HomeTeam.unique()
+table_team_names_df = pd.DataFrame(sorted(table_team_names), columns=['table_names'])
+home_team_names_df = pd.DataFrame(sorted(home_team_names), columns=['home_names'])
+
+diff_names = []
+for hn in table_team_names:
+    if hn not in home_team_names:
+        diff_names.append(hn)
+diff_names = pd.DataFrame(diff_names)
 
 
-
-
-
-
-
-
-
-
-
-
+home_team_names_df.to_csv(r'C:\Users\r2016728\Desktop\home_names.csv')
+drop_names = ['Den Haag', 'AEK', None, None, None, 'Akhisar Belediyespor', 'Ankaragucu',
+              'Apollon', None, 'Asteras Tripolis', 'Ath Bilbao', 'Ath Madrid', 'Ath Madrid',
+              'Erzurum BB', None, 'Buyuksehyr', 'Besiktas', 'Sp Braga', None, 'Cardiff', 'Celta',
+              'Darmstadt', 'Graafschap', None, 'Fortuna Dusseldorf', 'Ein Frankfurt', 'FC Emmen',
+              None, None, 'Espanol', 'Fenerbahce', 'For Sittard', None, 'Gaziantep', 'Ajaccio GFCO',
+              ]
+new_names = []
 
 
