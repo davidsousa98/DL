@@ -9,6 +9,7 @@ import zipfile as zp
 from sklearn.impute import KNNImputer
 import matplotlib.pyplot as plt
 import seaborn as sb
+from sklearn.linear_model import LassoCV, RidgeCV
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
@@ -310,3 +311,31 @@ y_test = df_test['Points']
 scaler = StandardScaler().fit(X_train)
 scaler_X_train = pd.DataFrame(scaler.transform(X_train), columns=X_train.columns)
 scaler_X_test = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns)
+# Metrics per shots
+df_train['Shots_precision'] =df_train['Shots_target']/ df_train['Shots']
+df_train['Shots_precision_against'] = df_train['Shots_target_against']/df_train['Shots_against']
+df_test['Shots_precision'] =df_test['Shots_target']/ df_test['Shots']
+df_test['Shots_precision_against'] = df_test['Shots_target_against']/df_test['Shots_against']
+
+# Feature Selection
+
+# Lasso Regression
+def plot_importance(coef,name):
+    imp_coef = coef.sort_values()
+    plt.figure(figsize=(8,10))
+    imp_coef.plot(kind = "barh")
+    plt.title("Feature importance using " + name + " Model")
+    plt.show()
+
+reg = LassoCV()
+reg.fit(scaler_X_train, y_train)
+coef = pd.Series(reg.coef_, index=scaler_X_train.columns)
+coef.sort_values()
+plot_importance(coef, 'Lasso')
+
+# Ridge Regression
+ridge = RidgeCV()
+ridge.fit(X=scaler_X_train, y=y_train)
+coef_ridge = pd.Series(ridge.coef_, index=scaler_X_train.columns)
+print(coef_ridge.sort_values())
+plot_importance(coef_ridge,'Ridge')
