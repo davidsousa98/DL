@@ -1,3 +1,4 @@
+###########################################################  SAMPLE  ###################################################
 import matplotlib
 matplotlib.use('TkAgg')
 
@@ -59,15 +60,15 @@ get_files_zip('league_table')
 df_stats_full = append_files(get_files_zip('game_stats'))
 df_table_full = append_files(get_files_zip('league_table'))
 
+####################################################### EXPLORE  #######################################################
+
 # Slice DataFrames
 df_stats = df_stats_full[['Div','Date','HomeTeam','AwayTeam','FTHG','FTAG','HTHG','HTAG','HS','AS','HST','AST','HF',
                           'AF','HC','AC','HY','AY','HR','AR']]
 
 df_table = df_table_full[['Squad', 'MP','GDiff', 'Pts', 'Season']]
 
-###########################################  MISSING VALUES TREATMENT  #################################################
-
-# Check for missing values
+# Missing values treatment
 missings_stats = df_stats.isnull().sum()
 missings_table = df_table.isnull().sum()
 
@@ -193,46 +194,64 @@ df.columns = ["Team", "Season", "League", "Goals", "Goals_against", "Halftime_go
               "Shots_against", "Shots_target", "Shots_target_against", "Corners", "Corners_against",
               "Fouls", "Fouls_against", "Yellow", "Yellow_against", "Red", "Red_against", "Goal_diff", "Points"]
 
-########################################## OUTLIERS RECOGNITION ########################################################
+# Create test set
+test_df = df.loc[df["Season"] == "2019/20"]
+df = df.loc[df["Season"] != "2019/20"]
 
+# Obtain insights from the data
+insights = df.describe()
+
+# Outliers Recognition
 # Boxplot visualization
-f, axes = plt.subplots(2, 5, figsize=(4, 2), squeeze=False)
-sb.boxplot(df["First_Policy"], color="skyblue", ax=axes[0, 0])
-sb.boxplot(df["Birthday"], color="olive", ax=axes[0, 1])
-sb.boxplot(df["Salary"], color="gold", ax=axes[0, 2])
-sb.boxplot(df["CMV"], whis=5, color="green", ax=axes[0, 3])
-sb.boxplot(df["Claims"], color="yellow", ax=axes[0, 4])
-sb.boxplot(df["Motor"], color="orange", ax=axes[1, 0])
-sb.boxplot(df["Household"], whis=7, color="brown", ax=axes[1, 1])
-sb.boxplot(df["Health"], whis=2.5, color="lavender", ax=axes[1, 2])
-sb.boxplot(df["Life"], whis=7.5, color="greenyellow", ax=axes[1, 3])
-sb.boxplot(df["Work_Compensations"], whis=7, color="m", ax=axes[1, 4])
+f, axes = plt.subplots(6, 3, figsize=(12, 10))
+sb.boxplot(df["Goals"], ax=axes[0, 0])
+sb.boxplot(df["Goals_against"], ax=axes[0, 1])
+sb.boxplot(df["Halftime_goals"], ax=axes[0, 2])
+sb.boxplot(df["Halftime_goals_against"], ax=axes[1, 0])
+sb.boxplot(df["Shots"], ax=axes[1, 1])
+sb.boxplot(df["Shots_against"], ax=axes[1, 2])
+sb.boxplot(df["Shots_target"], ax=axes[2, 0])
+sb.boxplot(df["Shots_target_against"], ax=axes[2, 1])
+sb.boxplot(df["Corners"], ax=axes[2, 2])
+sb.boxplot(df["Corners_against"], ax=axes[3, 0])
+sb.boxplot(df["Fouls"], ax=axes[3, 1])
+sb.boxplot(df["Fouls_against"], ax=axes[3, 2])
+sb.boxplot(df["Yellow"], ax=axes[4, 0])
+sb.boxplot(df["Yellow_against"], ax=axes[4, 1])
+sb.boxplot(df["Red"], ax=axes[4, 2])
+sb.boxplot(df["Red_against"], ax=axes[5, 0])
+sb.boxplot(df["Goal_diff"], ax=axes[5, 1])
+sb.boxplot(df["Points"], ax=axes[5, 2])
+plt.tight_layout()
+
 
 # Histogram visualization
-f, axes = plt.subplots(2, 5, figsize=(7, 7))
-plt.subplots_adjust(wspace = 0.3, hspace = 0.3)
-sb.distplot(df["First_Policy"], color="skyblue", ax=axes[0, 0], kde=False)
-sb.distplot(df["Birthday"], color="olive", ax=axes[0, 1], kde=False)
-sb.distplot(df["Salary"], color="gold", ax=axes[0, 2], kde=False)
-sb.distplot(df["CMV"], color="green", ax=axes[0, 3], kde=False)
-sb.distplot(df["Claims"], color="yellow", ax=axes[0, 4], kde=False)
-sb.distplot(df["Motor"], color="orange", ax=axes[1, 0], kde=False)
-sb.distplot(df["Household"], color="brown", ax=axes[1, 1], kde=False)
-sb.distplot(df["Health"], color="lavender", ax=axes[1, 2], kde=False)
-sb.distplot(df["Life"], color="greenyellow", ax=axes[1, 3], kde=False)
-sb.distplot(df["Work_Compensations"], color="m", ax=axes[1, 4], kde=False)
+f, axes = plt.subplots(6, 3, figsize=(12, 10))
+sb.distplot(df["Goals"], ax=axes[0, 0], kde=True)
+sb.distplot(df["Goals_against"], ax=axes[0, 1], kde=True)
+sb.distplot(df["Halftime_goals"], ax=axes[0, 2], kde=True)
+sb.distplot(df["Halftime_goals_against"], ax=axes[1, 0], kde=True)
+sb.distplot(df["Shots"], ax=axes[1, 1], kde=True)
+sb.distplot(df["Shots_against"], ax=axes[1, 2], kde=True)
+sb.distplot(df["Shots_target"], ax=axes[2, 0], kde=True)
+sb.distplot(df["Shots_target_against"], ax=axes[2, 1], kde=True)
+sb.distplot(df["Corners"], ax=axes[2, 2], kde=True)
+sb.distplot(df["Corners_against"], ax=axes[3, 0], kde=True)
+sb.distplot(df["Fouls"], ax=axes[3, 1], kde=True)
+sb.distplot(df["Fouls_against"], ax=axes[3, 2], kde=True)
+sb.distplot(df["Yellow"], ax=axes[4, 0], kde=True)
+sb.distplot(df["Yellow_against"], ax=axes[4, 1], kde=True)
+sb.distplot(df["Red"], ax=axes[4, 2], kde=True)
+sb.distplot(df["Red_against"], ax=axes[5, 0], kde=True)
+sb.distplot(df["Goal_diff"], ax=axes[5, 1], kde=True)
+sb.distplot(df["Points"], ax=axes[5, 2], kde=True)
+plt.tight_layout()
 
-df['Outlier'] = 0
-df.loc[df['First_Policy'] > 2020, 'Outlier'] = 1
+####################################################### MODIFY #########################################################
 
-df['Outlier'].value_counts()
-
-df = df.loc[df['Outlier'] == 0]
-
-# Correlation analysis
+# Correlation analysis between original variables
 plt.rcParams['figure.figsize'] = (12,12)
-
-corr_matrix=df.corr(method='pearson')
+corr_matrix=df.corr()
 mask = np.zeros_like(corr_matrix, dtype=np.bool)
 mask[np.triu_indices_from(mask)] = True
 sb.heatmap(data=corr_matrix, mask=mask, center=0, annot=True, linewidths=2, cmap='coolwarm')
@@ -270,7 +289,6 @@ df['Shots_precision'] =df['Shots_target']/ df['Shots']
 df['Shots_precision_against'] = df['Shots_target_against']/df['Shots_against']
 df_test['Shots_precision'] =df_test['Shots_target']/ df_test['Shots']
 df_test['Shots_precision_against'] = df_test['Shots_target_against']/df_test['Shots_against']
-
 
 
 
