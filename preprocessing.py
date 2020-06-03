@@ -311,14 +311,8 @@ y_test = df_test['Points']
 scaler = StandardScaler().fit(X_train)
 scaler_X_train = pd.DataFrame(scaler.transform(X_train), columns=X_train.columns)
 scaler_X_test = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns)
-# Metrics per shots
-df_train['Shots_precision'] =df_train['Shots_target']/ df_train['Shots']
-df_train['Shots_precision_against'] = df_train['Shots_target_against']/df_train['Shots_against']
-df_test['Shots_precision'] =df_test['Shots_target']/ df_test['Shots']
-df_test['Shots_precision_against'] = df_test['Shots_target_against']/df_test['Shots_against']
 
 # Feature Selection
-
 # Lasso Regression
 def plot_importance(coef,name):
     imp_coef = coef.sort_values()
