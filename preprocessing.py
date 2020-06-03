@@ -57,7 +57,7 @@ df_table_full = append_files(get_files_zip('league_table'))
 df_stats = df_stats_full[['Div','Date','HomeTeam','AwayTeam','FTHG','FTAG','HTHG','HTAG','HS','AS','HST','AST','HF',
                           'AF','HC','AC','HY','AY','HR','AR']]
 
-df_table = df_table_full[['Squad','GDiff', 'Pts', 'Season']]
+df_table = df_table_full[['Squad', 'MP','GDiff', 'Pts', 'Season']]
 
 ###########################################  MISSING VALUES TREATMENT  #################################################
 
@@ -119,8 +119,24 @@ filled_df.loc[filled_df["Div"] == "P1", "League"] = "Liga NOS"
 filled_df.drop(columns="Div", inplace=True)
 
 
-# Groupby
-df_grouped = df_stats.groupby('HomeTeam').count()
+# Groupby HomeTeam and AwayTeam
+df_home = filled_df.groupby(['HomeTeam', 'Season']).mean()
+df_away = filled_df.groupby(['AwayTeam', 'Season']).mean()
+
+#Change the names for concatenation purposes
+df_away_copy = df_away.copy()
+df_away_copy.columns = ['FTAG','FTHG','HTAG','HTHG','AS','HS','AST','HST','AF','HF','AC','HC',
+                        'AY','HY','AR','HR']
+
+#Average Home and Away games to simplify data and have info by game
+df_join = pd.concat([df_home,df_away_copy], axis = 1)
+df_join = (df_join.groupby(lambda x:x, axis=1).sum())/2
+
+
+# Add the column League to the new df
+filled_df_sliced = filled_df[['HomeTeam','League']].drop_duplicates()
+df_join= df_join.reset_index(level=[0,1])
+df_join = pd.merge(df_join,filled_df_sliced,on = 'HomeTeam')
 
 
 
