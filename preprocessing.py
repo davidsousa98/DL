@@ -251,12 +251,15 @@ plt.tight_layout()
 ####################################################### MODIFY #########################################################
 
 # Correlation analysis between original variables
-plt.rcParams['figure.figsize'] = (12,12)
-corr_matrix = df_train.corr()
-mask = np.zeros_like(corr_matrix, dtype=np.bool)
-mask[np.triu_indices_from(mask)] = True
-sb.heatmap(data=corr_matrix, mask=mask, center=0, annot=True, linewidths=2, cmap='coolwarm')
-plt.tight_layout()
+def correlation_matrix(df):
+    plt.rcParams['figure.figsize'] = (12,12)
+    corr_matrix = df.corr()
+    mask = np.zeros_like(corr_matrix, dtype=np.bool)
+    mask[np.triu_indices_from(mask)] = True
+    sb.heatmap(data=corr_matrix, mask=mask, center=0, annot=True, linewidths=2, cmap='coolwarm')
+    plt.tight_layout()
+
+correlation_matrix(df_train)
 
 # Drop variable 'Goal diff' since it is very correlated w/ Points
 df_train = df_train.drop(columns='Goal_diff')
@@ -293,12 +296,8 @@ df_test['Shots_precision'] = df_test['Shots_target']/df_test['Shots']
 df_test['Shots_precision_against'] = df_test['Shots_target_against']/df_test['Shots_against']
 
 # Correlation analysis between transformed variables
-plt.rcParams['figure.figsize'] = (12,12)
-corr_matrix = df_train.corr()
-mask = np.zeros_like(corr_matrix, dtype=np.bool)
-mask[np.triu_indices_from(mask)] = True
-sb.heatmap(data=corr_matrix, mask=mask, center=0, annot=True, linewidths=2, cmap='coolwarm')
-plt.tight_layout()
+correlation_matrix(df_train)
+
 
 # Data Standardization
 X_train = df_train.drop(columns=['Points', 'Team', 'Season', 'League'])
@@ -312,6 +311,12 @@ scaler_X_train = pd.DataFrame(scaler.transform(X_train), columns=X_train.columns
 scaler_X_test = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns)
 
 # Feature Selection
+variables = ['Goals_against','Corners_against','Corners_p/goal','Shots_p/goal','Shots_target_against','Fouls',
+             'Shots_precision_against','Shots','Total_cards_against','Shots_target','Corners','Corners_p/goal_against', 'Corners_p/goal']
+
+scaler_X_train = scaler_X_train[variables]
+scaler_X_test = scaler_X_test[variables]
+
 # Lasso Regression
 def plot_importance(coef,name):
     imp_coef = coef.sort_values()
@@ -398,3 +403,5 @@ plt.xlabel('Epochs')
 plt.ylabel('Mean Absolute Error')
 plt.legend()
 plt.show()
+# Correlation after feature selection
+correlation_matrix(scaler_X_train)
