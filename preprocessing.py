@@ -9,6 +9,7 @@ import zipfile as zp
 from sklearn.impute import KNNImputer
 import matplotlib.pyplot as plt
 import seaborn as sb
+from sklearn.linear_model import LassoCV, RidgeCV
 from sklearn.model_selection import train_test_split
 
 def get_files_zip(zip):
@@ -195,112 +196,133 @@ df.columns = ["Team", "Season", "League", "Goals", "Goals_against", "Halftime_go
               "Fouls", "Fouls_against", "Yellow", "Yellow_against", "Red", "Red_against", "Goal_diff", "Points"]
 
 # Create test set
-test_df = df.loc[df["Season"] == "2019/20"]
-df = df.loc[df["Season"] != "2019/20"]
+df_test = df.loc[df["Season"] == "2019/20"].copy()
+df_train = df.loc[df["Season"] != "2019/20"].copy()
 
 # Obtain insights from the data
-insights = df.describe()
+insights = df_train.describe()
 
 # Outliers Recognition
 # Boxplot visualization
 f, axes = plt.subplots(6, 3, figsize=(12, 10))
-sb.boxplot(df["Goals"], ax=axes[0, 0])
-sb.boxplot(df["Goals_against"], ax=axes[0, 1])
-sb.boxplot(df["Halftime_goals"], ax=axes[0, 2])
-sb.boxplot(df["Halftime_goals_against"], ax=axes[1, 0])
-sb.boxplot(df["Shots"], ax=axes[1, 1])
-sb.boxplot(df["Shots_against"], ax=axes[1, 2])
-sb.boxplot(df["Shots_target"], ax=axes[2, 0])
-sb.boxplot(df["Shots_target_against"], ax=axes[2, 1])
-sb.boxplot(df["Corners"], ax=axes[2, 2])
-sb.boxplot(df["Corners_against"], ax=axes[3, 0])
-sb.boxplot(df["Fouls"], ax=axes[3, 1])
-sb.boxplot(df["Fouls_against"], ax=axes[3, 2])
-sb.boxplot(df["Yellow"], ax=axes[4, 0])
-sb.boxplot(df["Yellow_against"], ax=axes[4, 1])
-sb.boxplot(df["Red"], ax=axes[4, 2])
-sb.boxplot(df["Red_against"], ax=axes[5, 0])
-sb.boxplot(df["Goal_diff"], ax=axes[5, 1])
-sb.boxplot(df["Points"], ax=axes[5, 2])
+sb.boxplot(df_train["Goals"], ax=axes[0, 0])
+sb.boxplot(df_train["Goals_against"], ax=axes[0, 1])
+sb.boxplot(df_train["Halftime_goals"], ax=axes[0, 2])
+sb.boxplot(df_train["Halftime_goals_against"], ax=axes[1, 0])
+sb.boxplot(df_train["Shots"], ax=axes[1, 1])
+sb.boxplot(df_train["Shots_against"], ax=axes[1, 2])
+sb.boxplot(df_train["Shots_target"], ax=axes[2, 0])
+sb.boxplot(df_train["Shots_target_against"], ax=axes[2, 1])
+sb.boxplot(df_train["Corners"], ax=axes[2, 2])
+sb.boxplot(df_train["Corners_against"], ax=axes[3, 0])
+sb.boxplot(df_train["Fouls"], ax=axes[3, 1])
+sb.boxplot(df_train["Fouls_against"], ax=axes[3, 2])
+sb.boxplot(df_train["Yellow"], ax=axes[4, 0])
+sb.boxplot(df_train["Yellow_against"], ax=axes[4, 1])
+sb.boxplot(df_train["Red"], ax=axes[4, 2])
+sb.boxplot(df_train["Red_against"], ax=axes[5, 0])
+sb.boxplot(df_train["Goal_diff"], ax=axes[5, 1])
+sb.boxplot(df_train["Points"], ax=axes[5, 2])
 plt.tight_layout()
 
 
 # Histogram visualization
 f, axes = plt.subplots(6, 3, figsize=(12, 10))
-sb.distplot(df["Goals"], ax=axes[0, 0], kde=True)
-sb.distplot(df["Goals_against"], ax=axes[0, 1], kde=True)
-sb.distplot(df["Halftime_goals"], ax=axes[0, 2], kde=True)
-sb.distplot(df["Halftime_goals_against"], ax=axes[1, 0], kde=True)
-sb.distplot(df["Shots"], ax=axes[1, 1], kde=True)
-sb.distplot(df["Shots_against"], ax=axes[1, 2], kde=True)
-sb.distplot(df["Shots_target"], ax=axes[2, 0], kde=True)
-sb.distplot(df["Shots_target_against"], ax=axes[2, 1], kde=True)
-sb.distplot(df["Corners"], ax=axes[2, 2], kde=True)
-sb.distplot(df["Corners_against"], ax=axes[3, 0], kde=True)
-sb.distplot(df["Fouls"], ax=axes[3, 1], kde=True)
-sb.distplot(df["Fouls_against"], ax=axes[3, 2], kde=True)
-sb.distplot(df["Yellow"], ax=axes[4, 0], kde=True)
-sb.distplot(df["Yellow_against"], ax=axes[4, 1], kde=True)
-sb.distplot(df["Red"], ax=axes[4, 2], kde=True)
-sb.distplot(df["Red_against"], ax=axes[5, 0], kde=True)
-sb.distplot(df["Goal_diff"], ax=axes[5, 1], kde=True)
-sb.distplot(df["Points"], ax=axes[5, 2], kde=True)
+sb.distplot(df_train["Goals"], ax=axes[0, 0], kde=True)
+sb.distplot(df_train["Goals_against"], ax=axes[0, 1], kde=True)
+sb.distplot(df_train["Halftime_goals"], ax=axes[0, 2], kde=True)
+sb.distplot(df_train["Halftime_goals_against"], ax=axes[1, 0], kde=True)
+sb.distplot(df_train["Shots"], ax=axes[1, 1], kde=True)
+sb.distplot(df_train["Shots_against"], ax=axes[1, 2], kde=True)
+sb.distplot(df_train["Shots_target"], ax=axes[2, 0], kde=True)
+sb.distplot(df_train["Shots_target_against"], ax=axes[2, 1], kde=True)
+sb.distplot(df_train["Corners"], ax=axes[2, 2], kde=True)
+sb.distplot(df_train["Corners_against"], ax=axes[3, 0], kde=True)
+sb.distplot(df_train["Fouls"], ax=axes[3, 1], kde=True)
+sb.distplot(df_train["Fouls_against"], ax=axes[3, 2], kde=True)
+sb.distplot(df_train["Yellow"], ax=axes[4, 0], kde=True)
+sb.distplot(df_train["Yellow_against"], ax=axes[4, 1], kde=True)
+sb.distplot(df_train["Red"], ax=axes[4, 2], kde=True)
+sb.distplot(df_train["Red_against"], ax=axes[5, 0], kde=True)
+sb.distplot(df_train["Goal_diff"], ax=axes[5, 1], kde=True)
+sb.distplot(df_train["Points"], ax=axes[5, 2], kde=True)
 plt.tight_layout()
 
 ####################################################### MODIFY #########################################################
 
 # Correlation analysis between original variables
 plt.rcParams['figure.figsize'] = (12,12)
-corr_matrix=df.corr()
+corr_matrix=df_train.corr()
 mask = np.zeros_like(corr_matrix, dtype=np.bool)
 mask[np.triu_indices_from(mask)] = True
 sb.heatmap(data=corr_matrix, mask=mask, center=0, annot=True, linewidths=2, cmap='coolwarm')
 plt.tight_layout()
 
 #Drop variable 'Goal diff' because is too correlated w/ Points:
-df = df.drop(columns = 'Goal_diff')
+df_train = df_train.drop(columns = 'Goal_diff')
 ###################################### TRANSFORM AND CREATE ############################################################
 
 #Metrics per goals
-df['Shots_p/goal'] = df['Shots']/df['Goals']
-df['Shots_p/goal_against'] = df['Shots_against']/df['Goals_against']
+df_train['Shots_p/goal'] = df_train['Shots']/df_train['Goals']
+df_train['Shots_p/goal_against'] = df_train['Shots_against']/df_train['Goals_against']
 df_test['Shots_p/goal'] = df_test['Shots']/df_test['Goals']
 df_test['Shots_p/goal_against'] = df_test['Shots_against']/df_test['Goals_against']
 
-df['Corners_p/goal'] = df['Corners']/df['Goal']
-df['Corners_p/goal_against'] = df['Corners_against']/df['Goal_against']
-df_test['Corners_p/goal'] = df_test['Corners']/df_test['Goal']
-df_test['Corners_p/goal_against'] = df_test['Corners_against']/df_test['Goal_against']
+df_train['Corners_p/goal'] = df_train['Corners']/df_train['Goals']
+df_train['Corners_p/goal_against'] = df_train['Corners_against']/df_train['Goals_against']
+df_test['Corners_p/goal'] = df_test['Corners']/df_test['Goals']
+df_test['Corners_p/goal_against'] = df_test['Corners_against']/df_test['Goals_against']
 
-df['Goals_1stHalf'] = df['Halftime_goals']/df['Goals']
+df_train['Goals_1stHalf'] = df_train['Halftime_goals']/df_train['Goals']
 df_test['Goals_1stHalf'] = df_test['Halftime_goals']/df_test['Goals']
 
 #Metrics per fouls and cards
-df['Total_cards'] = df['Yellow'] + df['Red']
-df['Total_cards_against'] = df['Yellow_against'] + df['Red_against']
+df_train['Total_cards'] = df_train['Yellow'] + df_train['Red']
+df_train['Total_cards_against'] = df_train['Yellow_against'] + df_train['Red_against']
 df_test['Total_cards'] = df_test['Yellow'] + df_test['Red']
 df_test['Total_cards_against'] = df_test['Yellow_against'] + df_test['Red_against']
 
-df['Danger_fouls'] = df['Total_cards']/df['Fouls']
-df_test['Danger_fouls'] = df['Total_cards']/df['Fouls']
+df_train['Danger_fouls'] = df_train['Total_cards']/df_train['Fouls']
+df_test['Danger_fouls'] = df_test['Total_cards']/df_test['Fouls']
 
 #Metrics per shots
-df['Shots_precision'] =df['Shots_target']/ df['Shots']
-df['Shots_precision_against'] = df['Shots_target_against']/df['Shots_against']
+df_train['Shots_precision'] =df_train['Shots_target']/ df_train['Shots']
+df_train['Shots_precision_against'] = df_train['Shots_target_against']/df_train['Shots_against']
 df_test['Shots_precision'] =df_test['Shots_target']/ df_test['Shots']
 df_test['Shots_precision_against'] = df_test['Shots_target_against']/df_test['Shots_against']
 
+#Feature Selection
+
+#Lasso Regression
+def plot_importance(coef,name):
+    imp_coef = coef.sort_values()
+    plt.figure(figsize=(8,10))
+    imp_coef.plot(kind = "barh")
+    plt.title("Feature importance using " + name + " Model")
+    plt.show()
+
+reg = LassoCV()
+reg.fit(scaler_X_train, y_train)
+coef = pd.Series(reg.coef_, index=scaler_X_train.columns)
+coef.sort_values()
+plot_importance(coef, 'Lasso')
+
+#Ridge Regression
+ridge = RidgeCV()
+ridge.fit(X=scaler_X_train, y=y_train)
+coef_ridge = pd.Series(ridge.coef_, index=scaler_X_train.columns)
+print(coef_ridge.sort_values())
+plot_importance(coef_ridge,'Ridge')
 
 
-
-
-variables = ['Severity', 'Age', 'Male', 'Santa Fe', 'Family_cases', 'Parents_infected_bin']
-
-# Data partition
-test_df = df.loc[df["Season"] == "2019/20"]
-
-# note: exclude season 19/20 from train/val
-X = df[variables]
-y = df['Deceased']
-
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=15, shuffle=True)
+#
+# variables = ['Severity', 'Age', 'Male', 'Santa Fe', 'Family_cases', 'Parents_infected_bin']
+#
+# # Data partition
+# test_df = df.loc[df["Season"] == "2019/20"]
+#
+# # note: exclude season 19/20 from train/val
+# X = df[variables]
+# y = df['Deceased']
+#
+# X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=15, shuffle=True)
