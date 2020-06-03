@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('TkAgg')
+
 # Import libraries
 import pandas as pd
 import numpy as np
@@ -147,12 +150,11 @@ df_join = (df_join.groupby(lambda x:x, axis=1).sum())/2
 
 # Add the column League to the new df
 filled_df_sliced = filled_df[['HomeTeam','League']].drop_duplicates()
-df_join= df_join.reset_index(level=[0,1])
+df_join = df_join.reset_index(level=[0,1])
 df_join = pd.merge(df_join,filled_df_sliced,on = 'HomeTeam')
 
 
 # Ensure that the clubs have the same name in both DataFrames
-
 df_home = filled_df.groupby(['HomeTeam', 'Season']).mean().reset_index()
 df_away = filled_df.groupby(['AwayTeam', 'Season']).mean().reset_index()
 
@@ -167,21 +169,29 @@ table_team_names_df = pd.DataFrame(sorted(table_team_names), columns=['table_nam
 home_team_names_df = pd.DataFrame(sorted(home_team_names), columns=['home_names'])
 
 diff_names = []
-for hn in table_team_names:
-    if hn not in home_team_names:
-        diff_names.append(hn)
-diff_names = pd.DataFrame(diff_names)
+for team in table_team_names:
+    if team not in home_team_names:
+        diff_names.append(team)
+diff_names = pd.DataFrame(sorted(diff_names))
 
 
-home_team_names_df.to_csv(r'/data/home_names.csv')
-drop_names = ['Den Haag', 'AEK', None, None, None, 'Akhisar Belediyespor', 'Ankaragucu',
-              'Apollon', None, 'Asteras Tripolis', 'Ath Bilbao', 'Ath Madrid', 'Ath Madrid',
-              'Erzurum BB', None, 'Buyuksehyr', 'Besiktas', 'Sp Braga', None, 'Cardiff', 'Celta',
-              'Darmstadt', 'Graafschap', None, 'Fortuna Dusseldorf', 'Ein Frankfurt', 'FC Emmen',
-              None, None, 'Espanol', 'Fenerbahce', 'For Sittard', None, 'Gaziantep', 'Ajaccio GFCO',
-              ]
-new_names = []
+pair_names = pd.read_excel(r'/Users/davidsousa/Desktop/diff_names.xlsx', header=None)
+pair_names.columns = ["Squad", "Team"]
 
+df_table = df_table.merge(pair_names, on="Squad", how="left")
+
+df_table.loc[df_table["Team"].isnull(), "Team"] = df_table["Squad"]
+df_table.drop(columns='Squad', inplace=True)
+
+df_join.rename(columns={"HomeTeam": "Team"}, inplace=True)
+df = df_join.merge(df_table, how='inner', on=['Team', 'Season'])
+
+df = df[["Team", "Season", "League", "FTHG", "FTAG", "HTHG", "HTAG", "HS", "AS", "HST", "AST", "HC", "AC",
+         "HF", "AF", "HY", "AY", "HR", "AR", "goaldiff_per_game", "points_per_game"]]
+
+df.columns = ["Team", "Season", "League", "Goals", "Goals_against", "Halftime_goals", "Halftime_goals_against", "Shots",
+              "Shots_against", "Shots_target", "Shots_target_against", "Corners", "Corners_against",
+              "Fouls", "Fouls_against", "Yellow", "Yellow_against", "Red", "Red_against", "Goal_diff", "Points"]
 
 ########################################## OUTLIERS RECOGNITION ########################################################
 
