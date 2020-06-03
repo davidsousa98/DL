@@ -88,7 +88,7 @@ filled_df = pd.DataFrame(imputer.fit_transform(temp_df))
 filled_df.columns = temp_df.columns
 filled_df = pd.concat([filled_df, df_stats["Div"], df_stats["Date"], df_stats["HomeTeam"], df_stats["AwayTeam"]], axis=1)
 
-##################################  TRANSFORM AND CREATE VARIABLES  ####################################################
+###########################################  DATA PREPARATION  #########################################################
 
 # Season variable
 filled_df['year'] = pd.DatetimeIndex(filled_df['Date']).year
@@ -175,7 +175,7 @@ for team in table_team_names:
 diff_names = pd.DataFrame(sorted(diff_names))
 
 
-pair_names = pd.read_excel(r'/Users/davidsousa/Desktop/diff_names.xlsx', header=None)
+pair_names = pd.read_excel(r'./data/diff_names.xlsx', header=None)
 pair_names.columns = ["Squad", "Team"]
 
 df_table = df_table.merge(pair_names, on="Squad", how="left")
@@ -232,11 +232,47 @@ df = df.loc[df['Outlier'] == 0]
 # Correlation analysis
 plt.rcParams['figure.figsize'] = (12,12)
 
-corr_matrix=df.corr(method='????')
+corr_matrix=df.corr(method='pearson')
 mask = np.zeros_like(corr_matrix, dtype=np.bool)
 mask[np.triu_indices_from(mask)] = True
 sb.heatmap(data=corr_matrix, mask=mask, center=0, annot=True, linewidths=2, cmap='coolwarm')
 plt.tight_layout()
+
+#Drop variable 'Goal diff' because is too correlated w/ Points:
+df = df.drop(columns = 'Goal_diff')
+###################################### TRANSFORM AND CREATE ############################################################
+
+#Metrics per goals
+df['Shots_p/goal'] = df['Shots']/df['Goals']
+df['Shots_p/goal_against'] = df['Shots_against']/df['Goals_against']
+df_test['Shots_p/goal'] = df_test['Shots']/df_test['Goals']
+df_test['Shots_p/goal_against'] = df_test['Shots_against']/df_test['Goals_against']
+
+df['Corners_p/goal'] = df['Corners']/df['Goal']
+df['Corners_p/goal_against'] = df['Corners_against']/df['Goal_against']
+df_test['Corners_p/goal'] = df_test['Corners']/df_test['Goal']
+df_test['Corners_p/goal_against'] = df_test['Corners_against']/df_test['Goal_against']
+
+df['Goals_1stHalf'] = df['Halftime_goals']/df['Goals']
+df_test['Goals_1stHalf'] = df_test['Halftime_goals']/df_test['Goals']
+
+#Metrics per fouls and cards
+df['Total_cards'] = df['Yellow'] + df['Red']
+df['Total_cards_against'] = df['Yellow_against'] + df['Red_against']
+df_test['Total_cards'] = df_test['Yellow'] + df_test['Red']
+df_test['Total_cards_against'] = df_test['Yellow_against'] + df_test['Red_against']
+
+df['Danger_fouls'] = df['Total_cards']/df['Fouls']
+df_test['Danger_fouls'] = df['Total_cards']/df['Fouls']
+
+#Metrics per shots
+df['Shots_precision'] =df['Shots_target']/ df['Shots']
+df['Shots_precision_against'] = df['Shots_target_against']/df['Shots_against']
+df_test['Shots_precision'] =df_test['Shots_target']/ df_test['Shots']
+df_test['Shots_precision_against'] = df_test['Shots_target_against']/df_test['Shots_against']
+
+
+
 
 
 
