@@ -312,9 +312,8 @@ scaler_X_train = pd.DataFrame(scaler.transform(X_train), columns=X_train.columns
 scaler_X_test = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns)
 
 # Feature Selection
-variables = ['Goals_against','Corners_against','Corners_p/goal','Shots_p/goal','Shots_target_against',
-             'Fouls','Shots_precision_against','Shots','Total_cards_against','Shots_target','Corners',
-             'Corners_p/goal_against', 'Corners_p/goal']
+variables = ['Goals_against','Corners_against','Shots_p/goal','Shots_target_against','Fouls','Shots_precision_against',
+             'Shots','Total_cards_against','Shots_target','Corners','Corners_p/goal_against', 'Corners_p/goal']
 
 scaler_X_train = scaler_X_train[variables]
 scaler_X_test = scaler_X_test[variables]
@@ -353,14 +352,14 @@ from keras.wrappers.scikit_learn import KerasRegressor
 # from sklearn.metrics import mean_absolute_error
 
 #Define model
-def build_model(dense_nparams = 32, activation = 'relu', dropout = 0.2, optimizer = 'RMSprop'):
+def build_model(dense_layer_sizes, dense_nparams = 64, activation = 'relu', dropout = 0.2, optimizer = 'RMSprop'):
     model = models.Sequential()
     model.add(layers.Dense(dense_nparams, activation=activation, input_shape=(scaler_X_train.shape[1],)))
-    model.add(layers.Dense(64, activation=activation))
+    # model.add(layers.Dense(64, activation=activation))
     model.add(Dropout(dropout))
-    # for units in dense_layer_sizes:
-    #     model.add(layers.Dense(units, activation=activation))
-    #     model.add(Dropout(dropout), )
+    for units in dense_layer_sizes:
+        model.add(layers.Dense(units, activation=activation))
+        model.add(Dropout(dropout), )
     model.add(layers.Dense(1))
     model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
     return model
@@ -377,11 +376,11 @@ Keras_estimator = KerasRegressor(build_fn=build_model)
 param_grid = {
     # 'epochs': [10, 25, 50, 100,125],
     'activation': ['relu', 'tanh','sigmoid','linear'], #hard_sigmoid,softmax,softplus,softsign
-    # 'dense_layer_sizes': [[32], [64], [32, 32], [64, 64]],
-    'dense_nparams': [32, 64, 72, 128, 154],
+    'dense_layer_sizes': [(32,), (64,), (32,32,), (64, 64,)],
+    # 'dense_nparams': [32, 64, 72, 128, 154],
     # 'init': ['uniform', 'zeros', 'normal'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
     # 'batch_size':[2, 16, 32],
-    'optimizer':['RMSprop', 'Adam', 'Adamax', 'sgd'],#Adagrad, Nadam, Adadelta
+    # 'optimizer':['RMSprop', 'Adam', 'Adamax', 'sgd'],#Adagrad, Nadam, Adadelta
     'dropout': [0.5, 0.4, 0.3, 0.2]
 }
 
@@ -403,8 +402,8 @@ gs_results  = pd.DataFrame(grid_result.cv_results_)
 #Define model
 def build_model():
     model = models.Sequential()
-    model.add(layers.Dense(72, activation='relu', input_shape=(scaler_X_train.shape[1],)))
-    model.add(layers.Dense(72, activation='relu'))
+    model.add(layers.Dense(64, activation='relu', input_shape=(scaler_X_train.shape[1],)))
+    model.add(layers.Dense(64, activation='relu'))
     model.add(layers.Dense(1))
     model.add(Dropout(0))
     model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
@@ -435,7 +434,7 @@ for i in range(k):
 
     model = build_model()
     history = model.fit(partial_train_data, partial_train_targets,
-                        validation_data=(val_data, val_targets), #callbacks=callbacks_list,
+                        validation_data=(val_data, val_targets), callbacks=callbacks_list,
                         epochs=num_epochs, batch_size=1, verbose=0)
 
     mae_history = history.history['val_mae']
@@ -460,12 +459,12 @@ print("The score of MAE in train is: {} \n The score for MAE in validation is: {
 
 
 # Plot train and validation MAE
-average_mae_history = [np.mean([x[i] for x in all_mae_histories]) for i in range(len(dict_history["epoch"])-2)]
-
-plt.plot(range(1, len(average_mae_history) + 1), average_mae_history)
-plt.xlabel('Epochs')
-plt.ylabel('Validation MAE')
-plt.show()
+# average_mae_history = [np.mean([x[i] for x in all_mae_histories]) for i in range(len(dict_history["epoch"])-2)]
+#
+# plt.plot(range(1, len(average_mae_history) + 1), average_mae_history)
+# plt.xlabel('Epochs')
+# plt.ylabel('Validation MAE')
+# plt.show()
 
 plt.clf()
 history_dict = history.history
