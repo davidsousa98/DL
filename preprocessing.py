@@ -325,7 +325,9 @@ correlation_matrix(df_train)
 X_train = df_train.drop(columns=['Points', 'Team', 'Season', 'League'])
 y_train = df_train['Points']
 
-X_test = df_test.drop(columns=['Points', 'Team', 'Season', 'League'])
+df_league_games = df_test[['League', 'Team']]
+df_league_games = df_league_games.set_index('Team')
+X_test = df_test.drop(columns=['Points', 'Season', 'League']).set_index('Team')
 y_test = df_test['Points']
 
 scaler = StandardScaler().fit(X_train)
@@ -362,6 +364,8 @@ plot_importance(coef_ridge,'Ridge')
 
 # Correlation after feature selection
 correlation_matrix(scaler_X_train)
+
+
 #########################################   SET A ENVIRONMENT FOR RANDOM STATE  ########################################
 # https://stackoverflow.com/questions/59075244/if-keras-results-are-not-reproducible-whats-the-best-practice-for-comparing-mo
 # https://stackoverflow.com/questions/50659482/why-cant-i-get-reproducible-results-in-keras-even-though-i-set-the-random-seeds
@@ -510,13 +514,16 @@ plt.show()
 
 # Predict the test output
 
-games = {'Liga NOS' : 34,
-         'Super League' : 30,
-         'Eredivisie' : 34,
-         'La Liga' : 38,
-         'Ligue 1': 38,
-         'Premier League' : 38,
-         'Serie A' : 38,
-         'Bundesliga' : 34,
-         'Jupiler' : 40,
-         'Super Lig' : 34}
+matches_dict = { 'Liga NOS' : 34,
+                 'Super League' : 30,
+                 'Eredivisie' : 34,
+                 'La Liga' : 38,
+                 'Ligue 1': 38,
+                 'Premier League' : 38,
+                 'Serie A' : 38,
+                 'Bundesliga' : 34,
+                 'Jupiler' : 40,
+                 'Super Lig' : 34}
+games = pd.DataFrame(matches_dict.values(), columns = ['Matches_Played'])
+games['League'] = matches_dict.keys()
+# df_league_games = pd.merge
