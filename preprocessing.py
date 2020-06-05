@@ -363,34 +363,35 @@ plot_importance(coef_ridge,'Ridge')
 # Correlation after feature selection
 correlation_matrix(scaler_X_train)
 #########################################   SET A ENVIRONMENT FOR RANDOM STATE  ########################################
+# https://stackoverflow.com/questions/59075244/if-keras-results-are-not-reproducible-whats-the-best-practice-for-comparing-mo
+# https://stackoverflow.com/questions/50659482/why-cant-i-get-reproducible-results-in-keras-even-though-i-set-the-random-seeds
+
 # Seed value
 # Apparently you may use different seed values at each stage
 seed_value= 0
 
-# 1. Set the `PYTHONHASHSEED` environment variable at a fixed value
+# 1. Set the `PYTHONHASHSEED` environment variable at a fixed value and deactivate the GPU
 import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ['PYTHONHASHSEED']=str(seed_value)
 
-# 2. Set the `python` built-in pseudo-random generator at a fixed value
-import random
-random.seed(seed_value)
-
-# 3. Set the `numpy` pseudo-random generator at a fixed value
-import numpy as np
-np.random.seed(seed_value)
-
-# 4. Set the `tensorflow` pseudo-random generator at a fixed value
+#2. Function to set random seed as a constant
 import tensorflow as tf
-# for later versions:
-tf.compat.v2.random.set_seed(seed_value)
+import random
 
-# 5. Configure a new global `tensorflow` session
-# from keras import backend as K
-session_conf = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
-sess = tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
-tf.compat.v1.keras.backend.set_session(sess)
+def reset_seeds(reset_graph_with_backend=None):
+    if reset_graph_with_backend is not None:
+        K = reset_graph_with_backend
+        K.clear_session()
+        tf.compat.v1.reset_default_graph()
+        # print("KERAS AND TENSORFLOW GRAPHS RESET")
+
+    np.random.seed(1)
+    random.seed(2)
+    tf.compat.v1.set_random_seed(3)
+    # print("RANDOM SEEDS RESET")
+
 
 
 ################################################################## MODEL ###############################################
@@ -398,6 +399,7 @@ tf.compat.v1.keras.backend.set_session(sess)
 
 #Define model
 def build_model(dense_layer_sizes,activation = 'sigmoid', optimizer = 'RMSprop'):#dropout = 0.2
+    reset_seeds()
     model = models.Sequential()
     model.add(layers.Dense(dense_layer_sizes[0], activation=activation, input_shape=(scaler_X_train.shape[1],)))
     # model.add(Dropout(dropout))
@@ -408,20 +410,20 @@ def build_model(dense_layer_sizes,activation = 'sigmoid', optimizer = 'RMSprop')
     model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
     return model
 
-callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5),
-                  keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
+callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5)]
+                  # keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
 
 
 #Grid Search
 k = 5
 cv = KFold(n_splits=k, shuffle=True, random_state=seed_value)
-Keras_estimator = KerasRegressor(build_fn=build_model)
+Keras_estimator = KerasRegressor(build_fn=build_model, callbacks=callbacks_list)
 
 
 param_grid = {
-    'epochs': [10, 25],#50
+    'epochs': [10, 25, 50],
     # 'activation': ['relu', 'tanh','sigmoid'], #linear,hard_sigmoid,softmax,softplus,softsign
-    'dense_layer_sizes': combination_layers(30,31,1), #(32,32,), (64, 64,)],
+    'dense_layer_sizes': combination_layers(30,40,1), #(32,32,), (64, 64,)],
     # 'dense_nparams': [32, 64, 72, 128, 154],
     # 'kernel_initializer': ['uniform', 'zeros', 'normal'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
     # 'batch_size':[2, 16, 32],
@@ -441,10 +443,9 @@ print('Mean test score: {}'.format(np.mean(grid.cv_results_['mean_test_score']))
 print('Mean train score: {}'.format(np.mean(grid.cv_results_['mean_train_score'])))
 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 
-# Mean test score: -0.12691973751801786
-# Mean train score: -0.12394582282434702
-# Best: -0.102491 using {'dense_layer_sizes': (30,), 'epochs': 25, 'optimizer': 'RMSprop'}
-
+# Mean test score: -0.12750995817888955
+# Mean train score: -0.12503155665164487
+# Best: -0.101220 using {'dense_layer_sizes': (30,), 'epochs': 25, 'optimizer': 'RMSprop'}
 
 # means = grid_result.cv_results_['mean_test_score']
 # stds = grid_result.cv_results_['std_test_score']
@@ -455,41 +456,40 @@ print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 
 
 #######################################################################################################################
+
+def build_model():
+    model = models.Sequential()
+    model.add(layers.Dense(72, activation='sigmoid', input_shape=(scaler_X_train.shape[1],)))
+    # model.add(layers.Dense(64, activation='relu'))
+    model.add(layers.Dense(1))
+    # model.add(Dropout(0.2))
+    model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
+    return model
 # fix random seed for reproducibility
 seed = 15
 np.random.seed(seed)
-num_epochs = 70
+
+# Set number of folds and epochs
+k = 5
+num_epochs = 100
+
 kfold = KFold(n_splits=k, shuffle=True, random_state=seed)
-cvscores_train = [0,0,0,0,0]
-cvscores_val = [0, 0, 0, 0, 0]
-cafalho = 0
-for train_index, val_index in kfold.split(scaler_X_train):
-    print("toma")
-    # get the indexes
-    cv_train, cv_val = scaler_X_train.iloc[train_index], scaler_X_train.iloc[val_index]
-    cv_y_train, cv_y_val = y_train.iloc[train_index], y_train.iloc[val_index]
-    # create model
-    model = models.Sequential()
-    model.add(layers.Dense(72, activation='sigmoid', kernel_regularizer=regularizers.l2(0.001), input_shape=(scaler_X_train.shape[1],)))
-    # model.add(layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.001)))
-    model.add(layers.Dense(1))
-	# Compile model
-	model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
-	# fit the model
-    history = model.fit(cv_train, cv_y_train, validation_data=(cv_val, cv_y_val),
-              callbacks=callbacks_list, epochs=num_epochs, verbose=0)
-	# evaluate the model
-    scores_train = model.evaluate(cv_train, cv_y_train, verbose=0)
-	scores_val = model.evaluate(cv_val, cv_y_val, verbose=0)
-	# print("%s: %.2f%%" % (model.metrics_names[1], scores_val[1]*100))
-#    cvscores_train.append(scores_train[1] * 100)
-#	 cvscores_val.append(scores_val[1] * 100)
-    cvscores_train[cafalho] = scores_train[1] * 100
-	cvscores_val[cafalho] = scores_val[1] * 100
-    cafalho +=1
+cvscores_train = []
+cvscores_val = []
+for train, val in kfold.split(scaler_X_train, y_train):
+    # Create model
+    model = build_model()
+	# Fit the model
+    history = model.fit(scaler_X_train.loc[train], y_train[train], validation_data=(scaler_X_train.loc[val], y_train[val]),
+                        callbacks=callbacks_list, epochs=num_epochs, verbose=0)
+	# Evaluate the model
+    scores_train = model.evaluate(scaler_X_train.loc[train], y_train[train], verbose=0)
+	scores_val = model.evaluate(scaler_X_train.loc[val], y_train[val], verbose=0)
+	print("%s: %.2f%%" % (model.metrics_names[1], scores_val[1]*100))
+    cvscores_train.append(scores_train[1] * 100)
+	cvscores_val.append(scores_val[1] * 100)
 print("MAE training score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_train), np.std(cvscores_train)))
 print("MAE validation score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_val), np.std(cvscores_val)))
-
 
 
 
