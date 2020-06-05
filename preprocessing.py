@@ -421,14 +421,13 @@ Keras_estimator = KerasRegressor(build_fn=build_model_grid)
 
 
 param_grid = {
-    'epochs': [10, 25],#, 50],
-    # 'activation': ['relu', 'tanh','sigmoid'], #linear,hard_sigmoid,softmax,softplus,softsign
+    'epochs': [25, 50],
+    'activation': ['relu', 'tanh','sigmoid'], #linear,hard_sigmoid,softmax,softplus,softsign
     'dense_layer_sizes': combination_layers(30,31,1), #(32,32,), (64, 64,)],
-    # 'dense_nparams': [32, 64, 72, 128, 154],
-    # 'kernel_initializer': ['uniform', 'zeros', 'normal'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
+    'kernel_regularizer':['l1','l2','l1_l2'],
+    'kernel_initializer': ['uniform', 'zeros', 'normal'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
     # 'batch_size':[2, 16, 32],
     'optimizer':['RMSprop', 'Adam', 'sgd'],#Adagrad, Nadam, Adadelta,'Adamax'
-    # 'dropout': [0.5, 0.4, 0.3, 0.2]
 }
 
 
