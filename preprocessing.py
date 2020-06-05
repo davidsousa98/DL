@@ -505,3 +505,18 @@ plt.ylabel('Mean Absolute Error')
 plt.legend()
 plt.show()
 
+
+
+
+# Predict the test output
+
+games = {'Liga NOS' : 34,
+         'Super League' : 30,
+         'Eredivisie' : 34,
+         'La Liga' : 38,
+         'Ligue 1': 38,
+         'Premier League' : 38,
+         'Serie A' : 38,
+         'Bundesliga' : 34,
+         'Jupiler' : 40,
+         'Super Lig' : 34}
