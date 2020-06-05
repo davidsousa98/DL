@@ -396,8 +396,6 @@ def reset_seeds(reset_graph_with_backend=None):
     tf.compat.v1.set_random_seed(3)
     # print("RANDOM SEEDS RESET")
 
-
-
 ##################################################### MODEL ############################################################
 # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras link for random state keras
 
@@ -425,19 +423,16 @@ Keras_estimator = KerasRegressor(build_fn=build_model_grid)
 
 
 param_grid = {
-    'epochs': [10, 25],#, 50],
-    # 'activation': ['relu', 'tanh','sigmoid'], #linear,hard_sigmoid,softmax,softplus,softsign
+    'epochs': [20, 25],#, 50],
+    'activation': ['relu', 'tanh', 'sigmoid', 'softmax'],
     'dense_layer_sizes': combination_layers(30,31,1), #(32,32,), (64, 64,)],
-    # 'dense_nparams': [32, 64, 72, 128, 154],
-    # 'kernel_initializer': ['uniform', 'zeros', 'normal'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
+    'kernel_initializer': ['random_normal', 'identity', 'zeros', 'ones', 'constant'],
     # 'batch_size':[2, 16, 32],
-    'optimizer':['RMSprop', 'Adam', 'sgd'],#Adagrad, Nadam, Adadelta,'Adamax'
-    # 'dropout': [0.5, 0.4, 0.3, 0.2]
+    'optimizer':['RMSprop', 'Adam', 'sgd', 'Adadelta'] #Adagrad, Nadam, Adadelta,'Adamax'
 }
 
-
 grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error',
-                    return_train_score = True)
+                    return_train_score=True, verbose=1)
 grid_result = grid.fit(scaler_X_train, y_train)
 
 
@@ -450,6 +445,29 @@ print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 # Mean test score: -0.22016040284833238
 # Mean train score: -0.20237114729853103
 # Best: -0.142468 using {'dense_layer_sizes': (30,), 'epochs': 25, 'optimizer': 'RMSprop'}
+
+# Export results to excel
+def save_excel(dataframe, sheetname, filename="gridresults"):
+    """
+    Function that saves the evaluation metrics into a excel file.
+
+    :param dataframe: dataframe that contains the metrics.
+    :param sheetname: name of the sheet containing the parameterization.
+    :param filename: specifies the name of the xlsx file.
+
+    """
+    if not os.path.isfile("./data/outputs/{}.xlsx".format(filename)):
+        mode = 'w'
+    else:
+        mode = 'a'
+    writer = pd.ExcelWriter('./data/outputs/{}.xlsx'.format(filename), engine='openpyxl', mode=mode)
+    dataframe.to_excel(writer, sheet_name=sheetname)
+    writer.save()
+    writer.close()
+
+gridresults = pd.DataFrame(grid_result.cv_results_)
+save_excel(gridresults, "sheetname")
+
 
 ########################################################################################################################
 # Define model
