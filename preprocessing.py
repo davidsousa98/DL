@@ -12,6 +12,8 @@ import seaborn as sb
 from sklearn.linear_model import LassoCV, RidgeCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV,KFold, cross_val_score
+from keras import layers, models, regularizers
+import keras
 
 def get_files_zip(zip):
     """
@@ -351,7 +353,7 @@ import keras
 from keras.wrappers.scikit_learn import KerasRegressor
 
 #Define model
-def build_model(dense_layer_sizes,activation = 'relu', optimizer = 'RMSprop'):#dropout = 0.2
+def build_model_grid(dense_layer_sizes,activation = 'relu', optimizer = 'RMSprop'):#dropout = 0.2
     model = models.Sequential()
     model.add(layers.Dense(dense_layer_sizes[0], activation=activation, input_shape=(scaler_X_train.shape[1],)))
     # model.add(Dropout(dropout))
@@ -369,7 +371,7 @@ callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5),
 #Grid Search
 k = 5
 cv = KFold(n_splits=k, shuffle=True, random_state=15)
-Keras_estimator = KerasRegressor(build_fn=build_model)
+Keras_estimator = KerasRegressor(build_fn=build_model_grid)
 
 
 param_grid = {
@@ -397,13 +399,12 @@ for mean, stdev, param in zip(means, stds, params):
     print("%f (%f) with: %r" % (mean, stdev, param))
 
 gs_results  = pd.DataFrame(grid_result.cv_results_)
-#######################################################################################################################
 
 # Define model
 def build_model():
     model = models.Sequential()
-    model.add(layers.Dense(72, activation='sigmoid', input_shape=(scaler_X_train.shape[1],)))
-    # model.add(layers.Dense(64, activation='relu'))
+    model.add(layers.Dense(72, activation='sigmoid', kernel_regularizer=regularizers.l2(0.001), input_shape=(scaler_X_train.shape[1],)))
+    # model.add(layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.001)))
     model.add(layers.Dense(1))
     # model.add(Dropout(0.2))
     model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
@@ -412,57 +413,32 @@ def build_model():
 callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5),
                   keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
 
+y_train = y_train.to_numpy()
+# fix random seed for reproducibility
+seed = 15
+np.random.seed(seed)
 
-
-
-#Test the default params
+# Set number of folds and epochs
 k = 5
-num_val_samples = len(scaler_X_train) // k
-num_epochs = 25
-all_mae_histories = []
+num_epochs = 100
 
-# acc = cross_val_score(estimator=Keras_estimator ,X = scaler_X_train,y = y_train)
-
-for i in range(k):
-    print('processing fold #', i+1)
-    val_data = scaler_X_train[i * num_val_samples: (i + 1) * num_val_samples]
-    val_targets = y_train[i * num_val_samples: (i + 1) * num_val_samples]
-
-    partial_train_data = np.concatenate(
-        [scaler_X_train[:i * num_val_samples],
-         scaler_X_train[(i + 1) * num_val_samples:]], axis=0)
-
-    partial_train_targets = np.concatenate(
-        [y_train[:i * num_val_samples],
-         y_train[(i + 1) * num_val_samples:]], axis=0)
-
+kfold = KFold(n_splits=k, shuffle=True, random_state=seed)
+#cvscores_train = []
+cvscores_val = []
+for train, val in kfold.split(scaler_X_train, y_train):
+    # Create model
     model = build_model()
-    history = model.fit(partial_train_data, partial_train_targets,
-                        validation_data=(val_data, val_targets),callbacks=callbacks_list,
-                        epochs=num_epochs, verbose=0)
-
-    mae_history = history.history['val_mae']
-    all_mae_histories.append(mae_history)
-
-model.evaluate(scaler_X_train,y_train)
-
-
-dict_history = history.__dict__
-df_history = pd.DataFrame(history.history)
-
-# Print score
-print("The score of MAE in train is: {} \n The score for MAE in validation is: {}".\
-    format(df_history.mae.iat[-1],df_history.val_mae.iat[-1]))
-
-
-
-
-
-
-
-
-
-
+	# Fit the model
+    history = model.fit(scaler_X_train.loc[train], y_train[train], validation_data=(scaler_X_train.loc[val], y_train[val]),
+                        callbacks=callbacks_list, epochs=num_epochs, verbose=0)
+	# Evaluate the model
+#    scores_train = model.evaluate(scaler_X_train.loc[train], y_train[train], verbose=0)
+	scores_val = model.evaluate(scaler_X_train.loc[val], y_train[val], verbose=0)
+	print("%s: %.2f%%" % (model.metrics_names[1], scores_val[1]*100))
+ #   cvscores_train.append(scores_train[1] * 100)
+	cvscores_val.append(scores_val[1] * 100)
+#print("MAE training score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_train), np.std(cvscores_train)))
+print("MAE validation score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_val), np.std(cvscores_val)))
 
 
 # Plot train and validation MAE
@@ -477,14 +453,13 @@ plt.clf()
 history_dict = history.history
 mae_values = history_dict['mae']
 val_mae_values = history_dict['val_mae']
-epochs = range(1, len(history_dict['mae'])+1)
+epochs = range(0, len(history_dict['mae']))
 
-plt.plot(epochs, mae_values, 'bo', label='Training mae')
-plt.plot(epochs, val_mae_values, 'b', label='Validation mae')
+plt.plot(epochs[2:], mae_values[2:], 'bo', label='Training mae')
+plt.plot(epochs[2:], val_mae_values[2:], 'b', label='Validation mae')
 plt.title('Training and validation mae')
 plt.xlabel('Epochs')
 plt.ylabel('Mean Absolute Error')
 plt.legend()
 plt.show()
-
 
