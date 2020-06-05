@@ -398,7 +398,7 @@ def reset_seeds(reset_graph_with_backend=None):
 # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras link for random state keras
 
 #Define model
-def build_model(dense_layer_sizes,activation = 'sigmoid', optimizer = 'RMSprop'):#dropout = 0.2
+def build_model_grid(dense_layer_sizes,activation = 'relu', optimizer = 'RMSprop'):#dropout = 0.2
     reset_seeds()
     model = models.Sequential()
     model.add(layers.Dense(dense_layer_sizes[0], activation=activation, input_shape=(scaler_X_train.shape[1],)))
@@ -416,8 +416,8 @@ callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5)]
 
 #Grid Search
 k = 5
-cv = KFold(n_splits=k, shuffle=True, random_state=seed_value)
-Keras_estimator = KerasRegressor(build_fn=build_model, callbacks=callbacks_list)
+cv = KFold(n_splits=k, shuffle=True, random_state=15)
+Keras_estimator = KerasRegressor(build_fn=build_model_grid)
 
 
 param_grid = {
@@ -438,33 +438,25 @@ grid_result = grid.fit(scaler_X_train, y_train)
 
 
 # Summary of results
-
 print('Mean test score: {}'.format(np.mean(grid.cv_results_['mean_test_score'])))
 print('Mean train score: {}'.format(np.mean(grid.cv_results_['mean_train_score'])))
 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 
-# Mean test score: -0.12750995817888955
-# Mean train score: -0.12503155665164487
-# Best: -0.101220 using {'dense_layer_sizes': (30,), 'epochs': 25, 'optimizer': 'RMSprop'}
-
-# means = grid_result.cv_results_['mean_test_score']
-# stds = grid_result.cv_results_['std_test_score']
-# params = grid_result.cv_results_['params']
-# for mean, stdev, param in zip(means, stds, params):
-#     print("%f (%f) with: %r" % (mean, stdev, param))
-
-
-
-#######################################################################################################################
-
+# Define model
 def build_model():
+    reset_seeds() #guarantee reproducibility
     model = models.Sequential()
-    model.add(layers.Dense(72, activation='sigmoid', input_shape=(scaler_X_train.shape[1],)))
-    # model.add(layers.Dense(64, activation='relu'))
+    model.add(layers.Dense(72, activation='sigmoid', kernel_regularizer=regularizers.l2(0.001), input_shape=(scaler_X_train.shape[1],)))
+    # model.add(layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.001)))
     model.add(layers.Dense(1))
     # model.add(Dropout(0.2))
     model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
     return model
+
+callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5),
+                  keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
+
+y_train = y_train.to_numpy()
 # fix random seed for reproducibility
 seed = 15
 np.random.seed(seed)
@@ -474,7 +466,7 @@ k = 5
 num_epochs = 100
 
 kfold = KFold(n_splits=k, shuffle=True, random_state=seed)
-cvscores_train = []
+#cvscores_train = []
 cvscores_val = []
 for train, val in kfold.split(scaler_X_train, y_train):
     # Create model
@@ -483,16 +475,13 @@ for train, val in kfold.split(scaler_X_train, y_train):
     history = model.fit(scaler_X_train.loc[train], y_train[train], validation_data=(scaler_X_train.loc[val], y_train[val]),
                         callbacks=callbacks_list, epochs=num_epochs, verbose=0)
 	# Evaluate the model
-    scores_train = model.evaluate(scaler_X_train.loc[train], y_train[train], verbose=0)
+#    scores_train = model.evaluate(scaler_X_train.loc[train], y_train[train], verbose=0)
 	scores_val = model.evaluate(scaler_X_train.loc[val], y_train[val], verbose=0)
 	print("%s: %.2f%%" % (model.metrics_names[1], scores_val[1]*100))
-    cvscores_train.append(scores_train[1] * 100)
+ #   cvscores_train.append(scores_train[1] * 100)
 	cvscores_val.append(scores_val[1] * 100)
-print("MAE training score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_train), np.std(cvscores_train)))
+#print("MAE training score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_train), np.std(cvscores_train)))
 print("MAE validation score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_val), np.std(cvscores_val)))
-
-
-
 
 # Plot train and validation MAE
 # average_mae_history = [np.mean([x[i] for x in all_mae_histories]) for i in range(len(dict_history["epoch"])-2)]
@@ -506,15 +495,13 @@ plt.clf()
 history_dict = history.history
 mae_values = history_dict['mae']
 val_mae_values = history_dict['val_mae']
-epochs = range(1, len(history_dict['mae'])+1)
+epochs = range(0, len(history_dict['mae']))
 
-plt.plot(epochs, mae_values, 'bo', label='Training mae')
-plt.plot(epochs, val_mae_values, 'b', label='Validation mae')
+plt.plot(epochs[2:], mae_values[2:], 'bo', label='Training mae')
+plt.plot(epochs[2:], val_mae_values[2:], 'b', label='Validation mae')
 plt.title('Training and validation mae')
 plt.xlabel('Epochs')
 plt.ylabel('Mean Absolute Error')
 plt.legend()
 plt.show()
-
-
 
