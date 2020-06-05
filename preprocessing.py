@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 from sklearn.linear_model import LassoCV, RidgeCV
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import GridSearchCV,KFold
+from sklearn.model_selection import GridSearchCV,KFold, cross_val_score
 
 def get_files_zip(zip):
     """
@@ -339,9 +339,9 @@ coef_ridge = pd.Series(ridge.coef_, index=scaler_X_train.columns)
 print(coef_ridge.sort_values())
 plot_importance(coef_ridge,'Ridge')
 
-# Correlation after feature selection
 correlation_matrix(scaler_X_train)
 
+# Correlation after feature selection
 ################################################################## MODEL ###############################################
 # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras link for random state keras
 from keras import models
@@ -349,17 +349,15 @@ from keras import layers
 from keras.layers import Dropout
 import keras
 from keras.wrappers.scikit_learn import KerasRegressor
-# from sklearn.metrics import mean_absolute_error
 
 #Define model
-def build_model(dense_layer_sizes, dense_nparams = 64, activation = 'relu', dropout = 0.2, optimizer = 'RMSprop'):
+def build_model(dense_layer_sizes,activation = 'relu', optimizer = 'RMSprop'):#dropout = 0.2
     model = models.Sequential()
-    model.add(layers.Dense(dense_nparams, activation=activation, input_shape=(scaler_X_train.shape[1],)))
-    # model.add(layers.Dense(64, activation=activation))
-    model.add(Dropout(dropout))
-    for units in dense_layer_sizes:
+    model.add(layers.Dense(dense_layer_sizes[0], activation=activation, input_shape=(scaler_X_train.shape[1],)))
+    # model.add(Dropout(dropout))
+    for units in dense_layer_sizes[1:]:
         model.add(layers.Dense(units, activation=activation))
-        model.add(Dropout(dropout), )
+        # model.add(Dropout(dropout), )
     model.add(layers.Dense(1))
     model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
     return model
@@ -373,20 +371,22 @@ k = 5
 cv = KFold(n_splits=k, shuffle=True, random_state=15)
 Keras_estimator = KerasRegressor(build_fn=build_model)
 
+
 param_grid = {
-    # 'epochs': [10, 25, 50, 100,125],
+    'epochs': [10, 25, 50],
     'activation': ['relu', 'tanh','sigmoid','linear'], #hard_sigmoid,softmax,softplus,softsign
-    'dense_layer_sizes': [(32,), (64,), (32,32,), (64, 64,)],
+    'dense_layer_sizes': [(32,), (64,), (72,), (84,)], #(32,32,), (64, 64,)],
     # 'dense_nparams': [32, 64, 72, 128, 154],
     # 'init': ['uniform', 'zeros', 'normal'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
     # 'batch_size':[2, 16, 32],
-    # 'optimizer':['RMSprop', 'Adam', 'Adamax', 'sgd'],#Adagrad, Nadam, Adadelta
-    'dropout': [0.5, 0.4, 0.3, 0.2]
+    'optimizer':['RMSprop', 'Adam', 'sgd'],#Adagrad, Nadam, Adadelta,'Adamax'
+    # 'dropout': [0.5, 0.4, 0.3, 0.2]
 }
 
 
 grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error')
 grid_result = grid.fit(scaler_X_train, y_train)
+
 
 # Summary of results
 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
@@ -397,15 +397,15 @@ for mean, stdev, param in zip(means, stds, params):
     print("%f (%f) with: %r" % (mean, stdev, param))
 
 gs_results  = pd.DataFrame(grid_result.cv_results_)
-########################################################################################################################
+#######################################################################################################################
 
-#Define model
+# Define model
 def build_model():
     model = models.Sequential()
-    model.add(layers.Dense(64, activation='relu', input_shape=(scaler_X_train.shape[1],)))
-    model.add(layers.Dense(64, activation='relu'))
+    model.add(layers.Dense(72, activation='sigmoid', input_shape=(scaler_X_train.shape[1],)))
+    # model.add(layers.Dense(64, activation='relu'))
     model.add(layers.Dense(1))
-    model.add(Dropout(0))
+    # model.add(Dropout(0.2))
     model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
     return model
 
@@ -413,11 +413,15 @@ callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5),
                   keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
 
 
+
+
 #Test the default params
 k = 5
 num_val_samples = len(scaler_X_train) // k
-num_epochs = 100
+num_epochs = 25
 all_mae_histories = []
+
+# acc = cross_val_score(estimator=Keras_estimator ,X = scaler_X_train,y = y_train)
 
 for i in range(k):
     print('processing fold #', i+1)
@@ -434,11 +438,14 @@ for i in range(k):
 
     model = build_model()
     history = model.fit(partial_train_data, partial_train_targets,
-                        validation_data=(val_data, val_targets), callbacks=callbacks_list,
-                        epochs=num_epochs, batch_size=1, verbose=0)
+                        validation_data=(val_data, val_targets),callbacks=callbacks_list,
+                        epochs=num_epochs, verbose=0)
 
     mae_history = history.history['val_mae']
     all_mae_histories.append(mae_history)
+
+model.evaluate(scaler_X_train,y_train)
+
 
 dict_history = history.__dict__
 df_history = pd.DataFrame(history.history)
