@@ -1,5 +1,4 @@
-###########################################################  SAMPLE  ###################################################
-
+########################################################################################################################
 # Import libraries
 import matplotlib
 matplotlib.use('TkAgg')
@@ -12,8 +11,12 @@ import seaborn as sb
 from sklearn.linear_model import LassoCV, RidgeCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV,KFold, cross_val_score
-from keras import layers, models, regularizers
+from itertools import combinations_with_replacement
+from keras.layers import Dropout
 import keras
+from keras.wrappers.scikit_learn import KerasRegressor
+from keras import layers, models, regularizers
+
 
 def get_files_zip(zip):
     """
@@ -54,6 +57,13 @@ def append_files(files):
 
     df_appened = pd.concat(list_files, axis=0, sort=False)
     return df_appened.reset_index()
+
+def combination_layers(min_neurons,max_neurons,n_layers):
+    l = []
+    for i in range(min_neurons,max_neurons):
+        l.append(i)
+    layersize = list(combinations_with_replacement(l,n_layers))
+    return layersize
 
 
 # Reading files from zip without extracting them
@@ -298,6 +308,15 @@ df_train['Shots_precision_against'] = df_train['Shots_target_against']/df_train[
 df_test['Shots_precision'] = df_test['Shots_target']/df_test['Shots']
 df_test['Shots_precision_against'] = df_test['Shots_target_against']/df_test['Shots_against']
 
+# League
+df_train['League_quality'] = 3
+df_train.loc[(df['League'] == 'Eredivisie') | (df['League'] == 'Liga NOS'), 'League_quality'] = 2
+df_train.loc[(df['League'] == 'Super League') | (df['League'] == 'Jupiler') | (df['League'] == 'Super Lig'), 'League_quality'] = 1
+df_test['League_quality'] = 3
+df_test.loc[(df_test['League'] == 'Eredivisie') | (df_test['League'] == 'Liga NOS'), 'League_quality'] = 2
+df_test.loc[(df_test['League'] == 'Super League') | (df_test['League'] == 'Jupiler') | (df_test['League'] == 'Super Lig'), 'League_quality'] = 1
+
+
 # Correlation analysis between transformed variables
 correlation_matrix(df_train)
 
@@ -341,16 +360,41 @@ coef_ridge = pd.Series(ridge.coef_, index=scaler_X_train.columns)
 print(coef_ridge.sort_values())
 plot_importance(coef_ridge,'Ridge')
 
-correlation_matrix(scaler_X_train)
-
 # Correlation after feature selection
+correlation_matrix(scaler_X_train)
+#########################################   SET A ENVIRONMENT FOR RANDOM STATE  ########################################
+# Seed value
+# Apparently you may use different seed values at each stage
+seed_value= 0
+
+# 1. Set the `PYTHONHASHSEED` environment variable at a fixed value
+import os
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ['PYTHONHASHSEED']=str(seed_value)
+
+# 2. Set the `python` built-in pseudo-random generator at a fixed value
+import random
+random.seed(seed_value)
+
+# 3. Set the `numpy` pseudo-random generator at a fixed value
+import numpy as np
+np.random.seed(seed_value)
+
+# 4. Set the `tensorflow` pseudo-random generator at a fixed value
+import tensorflow as tf
+# for later versions:
+tf.compat.v2.random.set_seed(seed_value)
+
+# 5. Configure a new global `tensorflow` session
+# from keras import backend as K
+session_conf = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+sess = tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
+tf.compat.v1.keras.backend.set_session(sess)
+
+
 ################################################################## MODEL ###############################################
 # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras link for random state keras
-from keras import models
-from keras import layers
-from keras.layers import Dropout
-import keras
-from keras.wrappers.scikit_learn import KerasRegressor
 
 #Define model
 def build_model_grid(dense_layer_sizes,activation = 'relu', optimizer = 'RMSprop'):#dropout = 0.2
@@ -375,22 +419,32 @@ Keras_estimator = KerasRegressor(build_fn=build_model_grid)
 
 
 param_grid = {
-    'epochs': [10, 25, 50],
-    'activation': ['relu', 'tanh','sigmoid','linear'], #hard_sigmoid,softmax,softplus,softsign
-    'dense_layer_sizes': [(32,), (64,), (72,), (84,)], #(32,32,), (64, 64,)],
+    'epochs': [10, 25],#50
+    # 'activation': ['relu', 'tanh','sigmoid'], #linear,hard_sigmoid,softmax,softplus,softsign
+    'dense_layer_sizes': combination_layers(30,31,1), #(32,32,), (64, 64,)],
     # 'dense_nparams': [32, 64, 72, 128, 154],
-    # 'init': ['uniform', 'zeros', 'normal'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
+    # 'kernel_initializer': ['uniform', 'zeros', 'normal'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
     # 'batch_size':[2, 16, 32],
     'optimizer':['RMSprop', 'Adam', 'sgd'],#Adagrad, Nadam, Adadelta,'Adamax'
     # 'dropout': [0.5, 0.4, 0.3, 0.2]
 }
 
 
-grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error')
+grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error',
+                    return_train_score = True)
 grid_result = grid.fit(scaler_X_train, y_train)
 
 
 # Summary of results
+print('Mean test score: {}'.format(np.mean(grid.cv_results_['mean_test_score'])))
+print('Mean train score: {}'.format(np.mean(grid.cv_results_['mean_train_score'])))
+print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+
+# means = grid_result.cv_results_['mean_test_score']
+# stds = grid_result.cv_results_['std_test_score']
+# params = grid_result.cv_results_['params']
+# for mean, stdev, param in zip(means, stds, params):
+#     print("%f (%f) with: %r" % (mean, stdev, param))
 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 means = grid_result.cv_results_['mean_test_score']
 stds = grid_result.cv_results_['std_test_score']
