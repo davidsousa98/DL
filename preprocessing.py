@@ -460,9 +460,14 @@ seed = 15
 np.random.seed(seed)
 num_epochs = 70
 kfold = KFold(n_splits=k, shuffle=True, random_state=seed)
-cvscores_train = []
-cvscores_val = []
-for train, val in kfold.split(scaler_X_train, y_train):
+cvscores_train = [0,0,0,0,0]
+cvscores_val = [0, 0, 0, 0, 0]
+cafalho = 0
+for train_index, val_index in kfold.split(scaler_X_train):
+    print("toma")
+    # get the indexes
+    cv_train, cv_val = scaler_X_train.iloc[train_index], scaler_X_train.iloc[val_index]
+    cv_y_train, cv_y_val = y_train.iloc[train_index], y_train.iloc[val_index]
     # create model
     model = models.Sequential()
     model.add(layers.Dense(72, activation='sigmoid', kernel_regularizer=regularizers.l2(0.001), input_shape=(scaler_X_train.shape[1],)))
@@ -471,14 +476,17 @@ for train, val in kfold.split(scaler_X_train, y_train):
 	# Compile model
 	model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
 	# fit the model
-    history = model.fit(scaler_X_train.iloc[train], y_train[train], validation_data=(scaler_X_train.loc[val], y_train[val]),
+    history = model.fit(cv_train, cv_y_train, validation_data=(cv_val, cv_y_val),
               callbacks=callbacks_list, epochs=num_epochs, verbose=0)
 	# evaluate the model
-    scores_train = model.evaluate(scaler_X_train.loc[train], y_train[train], verbose=0)
-	scores_val = model.evaluate(scaler_X_train.loc[val], y_train[val], verbose=0)
+    scores_train = model.evaluate(cv_train, cv_y_train, verbose=0)
+	scores_val = model.evaluate(cv_val, cv_y_val, verbose=0)
 	# print("%s: %.2f%%" % (model.metrics_names[1], scores_val[1]*100))
-    cvscores_train.append(scores_train[1] * 100)
-	cvscores_val.append(scores_val[1] * 100)
+#    cvscores_train.append(scores_train[1] * 100)
+#	 cvscores_val.append(scores_val[1] * 100)
+    cvscores_train[cafalho] = scores_train[1] * 100
+	cvscores_val[cafalho] = scores_val[1] * 100
+    cafalho +=1
 print("MAE training score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_train), np.std(cvscores_train)))
 print("MAE validation score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_val), np.std(cvscores_val)))
 
