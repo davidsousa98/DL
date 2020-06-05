@@ -402,13 +402,14 @@ def reset_seeds(reset_graph_with_backend=None):
 # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras link for random state keras
 
 #Define model
-def build_model_grid(dense_layer_sizes,activation = 'relu', optimizer = 'RMSprop'):#dropout = 0.2
+def build_model_grid(dense_layer_sizes,regularizers,initializer, activation = 'relu', optimizer = 'RMSprop'):
     reset_seeds()
     model = models.Sequential()
-    model.add(layers.Dense(dense_layer_sizes[0], activation=activation, input_shape=(scaler_X_train.shape[1],)))
-    # model.add(Dropout(dropout))
+    model.add(layers.Dense(dense_layer_sizes[0], activation=activation, kernel_regularizer=regularizers,
+                           kernel_initializer= initializer, input_shape=(scaler_X_train.shape[1],)))
+
     for units in dense_layer_sizes[1:]:
-        model.add(layers.Dense(units, activation=activation))
+        model.add(layers.Dense(units, activation=activation,kernel_regularizer=regularizers))
         # model.add(Dropout(dropout), )
     model.add(layers.Dense(1))
     model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
@@ -425,18 +426,18 @@ Keras_estimator = KerasRegressor(build_fn=build_model_grid)
 
 
 param_grid = {
-    'epochs': [25, 50],
-    'activation': ['relu', 'tanh','sigmoid'], #linear,hard_sigmoid,softmax,softplus,softsign
-    'dense_layer_sizes': combination_layers(30,31,1), #(32,32,), (64, 64,)],
-    'kernel_regularizer':['l1','l2','l1_l2'],
-    'kernel_initializer': ['uniform', 'zeros', 'normal'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
+    'epochs': [25],
+    'activation': ['relu', 'tanh','sigmoid', 'softmax'], #linear,hard_sigmoid,softmax,softplus,softsign
+    'dense_layer_sizes': combination_layers(30,100,1),
+    'regularizers':['l1','l2','l1_l2'],
+    'initializer': ['random_normal', 'identity','zeros', 'ones', 'constant'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
     # 'batch_size':[2, 16, 32],
-    'optimizer':['RMSprop', 'Adam', 'sgd'],#Adagrad, Nadam, Adadelta,'Adamax'
+    'optimizer':['RMSprop', 'Adam', 'sgd', 'Adadelta'],#Adagrad, Nadam, Adadelta,'Adamax'
 }
 
 
 grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error',
-                    return_train_score = True)
+                    return_train_score = True, verbose=1)
 grid_result = grid.fit(scaler_X_train, y_train)
 
 
