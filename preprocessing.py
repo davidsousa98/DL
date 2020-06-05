@@ -12,6 +12,8 @@ import seaborn as sb
 from sklearn.linear_model import LassoCV, RidgeCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV,KFold, cross_val_score
+from keras.callbacks import Callback
+
 
 def get_files_zip(zip):
     """
@@ -296,6 +298,15 @@ df_train['Shots_precision_against'] = df_train['Shots_target_against']/df_train[
 df_test['Shots_precision'] = df_test['Shots_target']/df_test['Shots']
 df_test['Shots_precision_against'] = df_test['Shots_target_against']/df_test['Shots_against']
 
+# League
+df_train['League_quality'] = 3
+df_train.loc[(df['League'] == 'Eredivisie') | (df['League'] == 'Liga NOS'), 'League_quality'] = 2
+df_train.loc[(df['League'] == 'Super League') | (df['League'] == 'Jupiler') | (df['League'] == 'Super Lig'), 'League_quality'] = 1
+df_test['League_quality'] = 3
+df_test.loc[(df_test['League'] == 'Eredivisie') | (df_test['League'] == 'Liga NOS'), 'League_quality'] = 2
+df_test.loc[(df_test['League'] == 'Super League') | (df_test['League'] == 'Jupiler') | (df_test['League'] == 'Super Lig'), 'League_quality'] = 1
+
+
 # Correlation analysis between transformed variables
 correlation_matrix(df_train)
 
@@ -402,15 +413,29 @@ gs_results  = pd.DataFrame(grid_result.cv_results_)
 # Define model
 def build_model():
     model = models.Sequential()
-    model.add(layers.Dense(72, activation='sigmoid', input_shape=(scaler_X_train.shape[1],)))
+    model.add(layers.Dense(32, activation='sigmoid', input_shape=(scaler_X_train.shape[1],)))
     # model.add(layers.Dense(64, activation='relu'))
     model.add(layers.Dense(1))
     # model.add(Dropout(0.2))
-    model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
+    model.compile(optimizer='rmsprop', loss='mse', metrics=['mse'])
     return model
 
-callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5),
-                  keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
+
+
+class AccuracyHistory(keras.callbacks.Callback):
+    def on_train_begin(self, logs={}):
+        self.val_mae = []
+        self.mae = []
+
+
+    def on_epoch_end(self, batch, logs={}):
+        self.mae.append(logs.get('mae'))
+        self.val_mae.append(logs.get('val_mae'))
+
+history = AccuracyHistory()
+
+# callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5),
+#                  keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
 
 
 
@@ -418,7 +443,7 @@ callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5),
 #Test the default params
 k = 5
 num_val_samples = len(scaler_X_train) // k
-num_epochs = 25
+num_epochs = 50
 all_mae_histories = []
 
 # acc = cross_val_score(estimator=Keras_estimator ,X = scaler_X_train,y = y_train)
@@ -438,7 +463,7 @@ for i in range(k):
 
     model = build_model()
     history = model.fit(partial_train_data, partial_train_targets,
-                        validation_data=(val_data, val_targets),callbacks=callbacks_list,
+                        validation_data=(val_data, val_targets),callbacks=[history],
                         epochs=num_epochs, verbose=0)
 
     mae_history = history.history['val_mae']
