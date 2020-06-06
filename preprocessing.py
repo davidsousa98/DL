@@ -1,4 +1,3 @@
-########################################################################################################################
 # Import libraries
 import matplotlib
 matplotlib.use('TkAgg')
@@ -10,13 +9,12 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 from sklearn.linear_model import LassoCV, RidgeCV
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import GridSearchCV,KFold, cross_val_score
+from sklearn.model_selection import GridSearchCV, KFold, cross_val_score
 from itertools import combinations_with_replacement
 from keras.layers import Dropout
 import keras
 from keras.wrappers.scikit_learn import KerasRegressor
 from keras import layers, models, regularizers
-
 
 def get_files_zip(zip):
     """
@@ -320,7 +318,6 @@ df_test.loc[(df_test['League'] == 'Super League') | (df_test['League'] == 'Jupil
 # Correlation analysis between transformed variables
 correlation_matrix(df_train)
 
-
 # Data Standardization
 X_train = df_train.drop(columns=['Points', 'Team', 'Season', 'League'])
 y_train = df_train['Points']
@@ -330,14 +327,13 @@ df_league_games = df_league_games.set_index('Team')
 X_test = df_test.drop(columns=['Points', 'Season', 'League']).set_index('Team')
 y_test = df_test['Points']
 
-scaler = StandardScaler().fit(X_train)
-scaler_X_train = pd.DataFrame(scaler.transform(X_train), columns=X_train.columns)
-scaler_X_test = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns)
-
 # Feature Selection
-variables = ['Goals_against','Corners_against','Shots_p/goal','Shots_target_against','Fouls','Shots_precision_against',
-             'Shots','Total_cards_against','Shots_target','Corners','Corners_p/goal_against', 'Corners_p/goal']
+variables = ['Goals', 'Goals_against', 'Corners_against', 'Shots_p/goal', 'Fouls', 'Shots_precision_against',
+             'Shots', 'Total_cards_against', 'Corners', 'Corners_p/goal_against']
 
+scaler = StandardScaler().fit(X_train[variables])
+scaler_X_train = pd.DataFrame(scaler.transform(X_train[variables]), columns=X_train[variables].columns)
+scaler_X_test = pd.DataFrame(scaler.transform(X_test[variables]), columns=X_test[variables].columns)
 scaler_X_train = scaler_X_train[variables]
 scaler_X_test = scaler_X_test[variables]
 
@@ -345,7 +341,7 @@ scaler_X_test = scaler_X_test[variables]
 def plot_importance(coef,name):
     imp_coef = coef.sort_values()
     plt.figure(figsize=(8,10))
-    imp_coef.plot(kind = "barh")
+    imp_coef.plot(kind="barh")
     plt.title("Feature importance using " + name + " Model")
     plt.show()
 
@@ -360,7 +356,7 @@ ridge = RidgeCV()
 ridge.fit(X=scaler_X_train, y=y_train)
 coef_ridge = pd.Series(ridge.coef_, index=scaler_X_train.columns)
 print(coef_ridge.sort_values())
-plot_importance(coef_ridge,'Ridge')
+plot_importance(coef_ridge, 'Ridge')
 
 # Correlation after feature selection
 correlation_matrix(scaler_X_train)
@@ -400,14 +396,13 @@ def reset_seeds(reset_graph_with_backend=None):
 # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras link for random state keras
 
 #Define model
-def build_model_grid(dense_layer_sizes,regularizers,initializer, activation = 'relu', optimizer = 'RMSprop'):
+def build_model_grid(dense_layer_sizes, regularizers, initializer, activation='relu', optimizer='RMSprop'):
     reset_seeds()
     model = models.Sequential()
     model.add(layers.Dense(dense_layer_sizes[0], activation=activation, kernel_regularizer=regularizers,
-                           kernel_initializer= initializer, input_shape=(scaler_X_train.shape[1],)))
-
+                           kernel_initializer=initializer, input_shape=(scaler_X_train.shape[1],)))
     for units in dense_layer_sizes[1:]:
-        model.add(layers.Dense(units, activation=activation,kernel_regularizer=regularizers))
+        model.add(layers.Dense(units, activation=activation, kernel_regularizer=regularizers, kernel_initializer=initializer))
         # model.add(Dropout(dropout), )
     model.add(layers.Dense(1))
     model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
@@ -422,15 +417,14 @@ k = 5
 cv = KFold(n_splits=k, shuffle=True, random_state=15)
 Keras_estimator = KerasRegressor(build_fn=build_model_grid)
 
-
 param_grid = {
     'epochs': [25],
     'activation': ['relu', 'tanh', 'sigmoid', 'softmax'], #linear,hard_sigmoid,softmax,softplus,softsign
-    'dense_layer_sizes': combination_layers(30,100,1),
+    'dense_layer_sizes': combination_layers(10, 11, 2),
     'regularizers':['l1','l2','l1_l2'],
-    'initializer': ['random_normal', 'identity','zeros', 'ones', 'constant'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
+    'initializer': ['random_normal', 'identity', 'zeros', 'ones', 'constant'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
     # 'batch_size':[2, 16, 32],
-    'optimizer':['RMSprop', 'Adam', 'sgd', 'Adadelta'],#Adagrad, Nadam, Adadelta,'Adamax'
+    'optimizer':['RMSprop', 'Adam', 'sgd', 'Adadelta'] #Adagrad, Nadam, Adadelta,'Adamax'
 }
 
 grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error',
@@ -468,24 +462,20 @@ def save_excel(dataframe, sheetname, filename="gridresults"):
     writer.close()
 
 gridresults = pd.DataFrame(grid_result.cv_results_)
-save_excel(gridresults, "sheetname")
-
+save_excel(gridresults, "hidden1010")
 
 ########################################################################################################################
 # Define model
 def build_model():
-    reset_seeds() #guarantee reproducibility
+    reset_seeds() # guarantee reproducibility
     model = models.Sequential()
-    model.add(layers.Dense(30, activation='sigmoid', kernel_regularizer=regularizers.l2(0.001),
+    model.add(layers.Dense(10, activation='relu', kernel_regularizer=regularizers.l2(0.001), kernel_initializer='random_normal',
                            input_shape=(scaler_X_train.shape[1],)))
-    # model.add(layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.001)))
+    model.add(layers.Dense(10, activation='relu', kernel_regularizer=regularizers.l2(0.001), kernel_initializer='random_normal'))
     model.add(layers.Dense(1))
     # model.add(Dropout(0.2))
-    model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
+    model.compile(optimizer='Adadelta', loss='mse', metrics=['mae'])
     return model
-
-# callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5),
-#                   keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
 
 y_train = y_train.to_numpy()
 num_epochs = 25
@@ -497,7 +487,7 @@ for train, val in cv.split(scaler_X_train, y_train):
     model = build_model()
     # Fit the model
     history = model.fit(scaler_X_train.loc[train], y_train[train], validation_data=(scaler_X_train.loc[val], y_train[val]),
-                         epochs=num_epochs,callbacks=callbacks_list, verbose=0)
+                         epochs=num_epochs, callbacks=callbacks_list, verbose=0)
     # Evaluate the model
     # scores_train = model.evaluate(scaler_X_train.loc[train], y_train[train], verbose=0)
     scores_val = model.evaluate(scaler_X_train.loc[val], y_train[val], verbose=0)
@@ -521,8 +511,8 @@ mae_values = history_dict['mae']
 val_mae_values = history_dict['val_mae']
 epochs = range(0, len(history_dict['mae']))
 
-plt.plot(epochs[2:], mae_values[2:], 'bo', label='Training mae')
-plt.plot(epochs[2:], val_mae_values[2:], 'b', label='Validation mae')
+plt.plot(epochs[5:], mae_values[5:], 'bo', label='Training mae')
+plt.plot(epochs[5:], val_mae_values[5:], 'b', label='Validation mae')
 plt.title('Training and validation mae')
 plt.xlabel('Epochs')
 plt.ylabel('Mean Absolute Error')
