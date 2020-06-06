@@ -394,6 +394,8 @@ def reset_seeds(reset_graph_with_backend=None):
 
 ##################################################### MODEL ############################################################
 # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras link for random state keras
+# import joblib
+# joblib.Parallel(backend='multiprocessing')
 
 #Define model
 def build_model_grid(dense_layer_sizes, regularizers, initializer, activation='relu', optimizer='RMSprop'):
@@ -429,7 +431,7 @@ param_grid = {
 
 grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error',
                     return_train_score=True, verbose=1)
-grid_result = grid.fit(scaler_X_train, y_train)
+grid_result = grid.fit(scaler_X_train, y_train).set_params(callbacks_list)
 
 
 # Summary of results
@@ -466,6 +468,7 @@ save_excel(gridresults, "hidden1010")
 
 ########################################################################################################################
 # Define model
+# y_train = y_train.to_numpy()
 def build_model():
     reset_seeds() # guarantee reproducibility
     model = models.Sequential()
