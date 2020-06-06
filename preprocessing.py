@@ -336,7 +336,7 @@ scaler_X_test = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns)
 
 # Feature Selection
 variables = ['Goals_against','Corners_against','Shots_p/goal','Shots_target_against','Fouls','Shots_precision_against',
-             'Shots','Total_cards_against','Shots_target','Corners','Corners_p/goal_against', 'Corners_p/goal']
+             'Shots','Total_cards_against','Shots_target','Corners_p/goal_against', 'Corners_p/goal'] #corners
 
 scaler_X_train = scaler_X_train[variables]
 scaler_X_test = scaler_X_test[variables]
@@ -400,9 +400,11 @@ def reset_seeds(reset_graph_with_backend=None):
 
 ##################################################### MODEL ############################################################
 # https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras link for random state keras
+# import joblib
+# joblib.Parallel(backend='multiprocessing')
 
 #Define model
-def build_model_grid(dense_layer_sizes,regularizers,initializer, activation = 'relu', optimizer = 'RMSprop'):
+def build_model_grid(dense_layer_sizes,regularizers = 'l1',initializer = 'random_normal', activation = 'relu', optimizer = 'RMSprop'):
     reset_seeds()
     model = models.Sequential()
     model.add(layers.Dense(dense_layer_sizes[0], activation=activation, kernel_regularizer=regularizers,
@@ -427,18 +429,18 @@ Keras_estimator = KerasRegressor(build_fn=build_model_grid)
 
 param_grid = {
     'epochs': [25],
-    'activation': ['relu', 'tanh','sigmoid', 'softmax'], #linear,hard_sigmoid,softmax,softplus,softsign
-    'dense_layer_sizes': combination_layers(30,100,1),
+    'activation': ['relu', 'tanh','sigmoid', 'softmax','elu','LeakyReLU'], #linear,hard_sigmoid,softmax,softplus,softsign, ThresholdedReLU
+    'dense_layer_sizes': combination_layers(70,90,1),
     'regularizers':['l1','l2','l1_l2'],
-    'initializer': ['random_normal', 'identity','zeros', 'ones', 'constant'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
+    'initializer': ['random_normal', 'identity', 'constant'], #zeros, ones, lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
     # 'batch_size':[2, 16, 32],
-    'optimizer':['RMSprop', 'Adam', 'sgd', 'Adadelta'],#Adagrad, Nadam, Adadelta,'Adamax'
+    'optimizer':['RMSprop', 'Adam', 'sgd'],#Adagrad, Nadam, Adadelta,'Adamax', #Adadelta
 }
 
 
-grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error',
-                    return_train_score = True, verbose=1)
-grid_result = grid.fit(scaler_X_train, y_train)
+grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=4, cv=cv, scoring='neg_mean_absolute_error',
+                    return_train_score = True)
+grid_result = grid.fit(scaler_X_train, y_train).set_params(callbacks_list)
 
 
 # Summary of results
@@ -446,28 +448,23 @@ print('Mean test score: {}'.format(np.mean(grid.cv_results_['mean_test_score']))
 print('Mean train score: {}'.format(np.mean(grid.cv_results_['mean_train_score'])))
 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 
-
-# Mean test score: -0.22016040284833238
-# Mean train score: -0.20237114729853103
-# Best: -0.142468 using {'dense_layer_sizes': (30,), 'epochs': 25, 'optimizer': 'RMSprop'}
-
 ########################################################################################################################
 # Define model
+# y_train = y_train.to_numpy()
 def build_model():
     reset_seeds() #guarantee reproducibility
     model = models.Sequential()
-    model.add(layers.Dense(30, activation='sigmoid', kernel_regularizer=regularizers.l2(0.001),
+    model.add(layers.Dense(77, activation='elu', kernel_regularizer='l2', kernel_initializer = 'random_normal',
                            input_shape=(scaler_X_train.shape[1],)))
     # model.add(layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.001)))
     model.add(layers.Dense(1))
     # model.add(Dropout(0.2))
-    model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
+    model.compile(optimizer='adam', loss='mse', metrics=['mae'])
     return model
 
 # callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5),
 #                   keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
 
-y_train = y_train.to_numpy()
 num_epochs = 25
 
 #cvscores_train = []
