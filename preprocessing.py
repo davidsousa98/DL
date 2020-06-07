@@ -9,12 +9,12 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 from sklearn.linear_model import LassoCV, RidgeCV
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import GridSearchCV, KFold, cross_val_score
+from sklearn.model_selection import GridSearchCV, KFold, train_test_split, cross_val_score
 from itertools import combinations_with_replacement
-from keras.layers import Dropout
 import keras
 from keras.wrappers.scikit_learn import KerasRegressor
 from keras import layers, models, regularizers
+from keras.layers import Dropout, Dense, TimeDistributed, LSTM
 
 def get_files_zip(zip):
     """
@@ -328,8 +328,9 @@ X_test = df_test.drop(columns=['Points', 'Season', 'League']).set_index('Team')
 y_test = df_test['Points']
 
 # Feature Selection
-variables = ['Goals', 'Goals_against', 'Corners_against', 'Shots_p/goal', 'Fouls', 'Shots_precision_against',
-             'Shots', 'Total_cards_against', 'Corners', 'Corners_p/goal_against']
+variables = ['Goals','Corners_p/goal_against','Corners','Shots_target','Total_cards_against',
+             'Shots_precision_against','Fouls','Shots_p/goal','Shots_target_against','Corners_p/goal',
+             'Corners_against','Goals_against']
 
 scaler = StandardScaler().fit(X_train[variables])
 scaler_X_train = pd.DataFrame(scaler.transform(X_train[variables]), columns=X_train[variables].columns)
@@ -410,7 +411,7 @@ def build_model_grid(dense_layer_sizes, regularizers, initializer, activation='r
     model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
     return model
 
-callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=5)]
+callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=7)]
                   # keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
 
 
@@ -421,17 +422,17 @@ Keras_estimator = KerasRegressor(build_fn=build_model_grid)
 
 param_grid = {
     'epochs': [25],
-    'activation': ['relu', 'tanh', 'sigmoid', 'softmax'], #linear,hard_sigmoid,softmax,softplus,softsign
-    'dense_layer_sizes': combination_layers(10, 11, 2),
-    'regularizers':['l1','l2','l1_l2'],
-    'initializer': ['random_normal', 'identity', 'zeros', 'ones', 'constant'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
+    'activation': ['selu'], # linear,hard_sigmoid,softmax,softplus,softsign
+    'dense_layer_sizes': combination_layers(50, 70, 2),
+    'regularizers':['l2'], # ,'l1_l2'
+    'initializer': ['random_normal'], # 'identity', 'zeros', 'ones', 'constant', lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
     # 'batch_size':[2, 16, 32],
-    'optimizer':['RMSprop', 'Adam', 'sgd', 'Adadelta'] #Adagrad, Nadam, Adadelta,'Adamax'
+    'optimizer':['sgd'] #Adagrad, Nadam, Adadelta,'Adamax'
 }
 
 grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error',
                     return_train_score=True, verbose=1)
-grid_result = grid.fit(scaler_X_train, y_train).set_params(callbacks_list)
+grid_result = grid.fit(scaler_X_train, y_train)
 
 
 # Summary of results
@@ -440,9 +441,6 @@ print('Mean train score: {}'.format(np.mean(grid.cv_results_['mean_train_score']
 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 
 
-# Mean test score: -0.22016040284833238
-# Mean train score: -0.20237114729853103
-# Best: -0.142468 using {'dense_layer_sizes': (30,), 'epochs': 25, 'optimizer': 'RMSprop'}
 
 # Export results to excel
 def save_excel(dataframe, sheetname, filename="gridresults"):
@@ -464,24 +462,24 @@ def save_excel(dataframe, sheetname, filename="gridresults"):
     writer.close()
 
 gridresults = pd.DataFrame(grid_result.cv_results_)
-save_excel(gridresults, "hidden1010")
+save_excel(gridresults, "2hidden50to70")
 
 ########################################################################################################################
-# Define model
-# y_train = y_train.to_numpy()
+# Define
+y_train = y_train.to_numpy()
+
 def build_model():
     reset_seeds() # guarantee reproducibility
     model = models.Sequential()
-    model.add(layers.Dense(10, activation='relu', kernel_regularizer=regularizers.l2(0.001), kernel_initializer='random_normal',
+    model.add(layers.Dense(53, activation='selu', kernel_regularizer='l2', kernel_initializer='random_normal',
                            input_shape=(scaler_X_train.shape[1],)))
-    model.add(layers.Dense(10, activation='relu', kernel_regularizer=regularizers.l2(0.001), kernel_initializer='random_normal'))
+    model.add(layers.Dense(67, activation='selu', kernel_regularizer='l2', kernel_initializer='random_normal'))
     model.add(layers.Dense(1))
     # model.add(Dropout(0.2))
-    model.compile(optimizer='Adadelta', loss='mse', metrics=['mae'])
+    model.compile(optimizer='sgd', loss='mse', metrics=['mae'])
     return model
 
-y_train = y_train.to_numpy()
-num_epochs = 25
+num_epochs = 100
 
 #cvscores_train = []
 cvscores_val = []
@@ -526,7 +524,11 @@ plt.show()
 
 
 # Predict the test output
+scores_test = model.evaluate(scaler_X_test, y_test, verbose=0)
+print("Test MAE:", scores_test[1]*100)
+labels_test = model.predict(scaler_X_test)
 
+# Number of Matches Played
 matches_dict = { 'Liga NOS' : 34,
                  'Super League' : 30,
                  'Eredivisie' : 34,
@@ -539,4 +541,32 @@ matches_dict = { 'Liga NOS' : 34,
                  'Super Lig' : 34}
 games = pd.DataFrame(matches_dict.values(), columns = ['Matches_Played'])
 games['League'] = matches_dict.keys()
-# df_league_games = pd.merge
+final_classification = df_league_games.reset_index().merge(games, how='left', on=['League'])
+final_classification['points_per_game'] = labels_test
+final_classification['Points'] = round(final_classification['points_per_game'] * final_classification['Matches_Played'])
+final_classification = final_classification.sort_values(by = ['Points'], ascending=False)
+
+
+
+
+###################################### LSTM ######################################
+
+# Data preprocessing
+df_lstm = df_train.copy()
+
+df_lstm_2 = df_lstm[['Team', 'Season']].copy()
+df_lstm_2['18_19'] = 0
+df_lstm_2.loc[df_lstm_2['Season']=='2018/19', '18_19'] = 1
+df_lstm_2['17_18'] = 0
+df_lstm_2.loc[df_lstm_2['Season']=='2017/18', '17_18'] = 1
+# df_lstm_2['16_17'] = 0
+# df_lstm_2.loc[df_lstm_2['Season']=='2016/17', '16_17'] = 1
+df_lstm_2 = df_lstm_2.groupby(['Team']).sum()[['18_19','17_18']] # ,'16_17'
+df_lstm_2 = df_lstm_2.loc[(df_lstm_2['18_19']==1) & (df_lstm_2['17_18']==1)].reset_index()
+
+df_lstm = df_lstm.loc[(df_lstm['Team'].isin(list(df_lstm_2.Team.unique()))) & (df['Season'].isin(['2018/19','2017/18']))]
+
+df_lstm.set_index(['Team', 'Season'], inplace = True)
+
+X_lstm = df_
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
