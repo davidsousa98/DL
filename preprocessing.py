@@ -9,12 +9,12 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 from sklearn.linear_model import LassoCV, RidgeCV
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import GridSearchCV, KFold, cross_val_score
+from sklearn.model_selection import GridSearchCV, KFold, train_test_split, cross_val_score
 from itertools import combinations_with_replacement
-from keras.layers import Dropout
 import keras
 from keras.wrappers.scikit_learn import KerasRegressor
 from keras import layers, models, regularizers
+from keras.layers import Dropout, Dense, TimeDistributed, LSTM
 
 def get_files_zip(zip):
     """
@@ -411,7 +411,11 @@ def build_model_grid(dense_layer_sizes, regularizers, initializer, activation='r
     model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
     return model
 
-# Grid Search
+callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=7)]
+                  # keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
+
+
+#Grid Search
 k = 5
 cv = KFold(n_splits=k, shuffle=True, random_state=15)
 Keras_estimator = KerasRegressor(build_fn=build_model_grid)
@@ -436,9 +440,6 @@ print('Mean train score: {}'.format(np.mean(grid.cv_results_['mean_train_score']
 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 
 
-# Mean test score: -0.22016040284833238
-# Mean train score: -0.20237114729853103
-# Best: -0.142468 using {'dense_layer_sizes': (30,), 'epochs': 25, 'optimizer': 'RMSprop'}
 
 # Export results to excel
 def save_excel(dataframe, sheetname, filename="gridresults"):
@@ -462,7 +463,6 @@ def save_excel(dataframe, sheetname, filename="gridresults"):
 gridresults = pd.DataFrame(grid_result.cv_results_)
 save_excel(gridresults, "hidden505050_var12")
 
-########################################################################################################################
 # Define model
 def build_model():
     reset_seeds() # guarantee reproducibility
@@ -543,7 +543,11 @@ plt.show()
 
 
 # Predict the test output
+scores_test = model.evaluate(scaler_X_test, y_test, verbose=0)
+print("Test MAE:", scores_test[1]*100)
+labels_test = model.predict(scaler_X_test)
 
+# Number of Matches Played
 matches_dict = { 'Liga NOS' : 34,
                  'Super League' : 30,
                  'Eredivisie' : 34,
@@ -556,4 +560,32 @@ matches_dict = { 'Liga NOS' : 34,
                  'Super Lig' : 34}
 games = pd.DataFrame(matches_dict.values(), columns = ['Matches_Played'])
 games['League'] = matches_dict.keys()
-# df_league_games = pd.merge
+final_classification = df_league_games.reset_index().merge(games, how='left', on=['League'])
+final_classification['points_per_game'] = labels_test
+final_classification['Points'] = round(final_classification['points_per_game'] * final_classification['Matches_Played'])
+final_classification = final_classification.sort_values(by = ['Points'], ascending=False)
+
+
+
+
+###################################### LSTM ######################################
+
+# Data preprocessing
+df_lstm = df_train.copy()
+
+df_lstm_2 = df_lstm[['Team', 'Season']].copy()
+df_lstm_2['18_19'] = 0
+df_lstm_2.loc[df_lstm_2['Season']=='2018/19', '18_19'] = 1
+df_lstm_2['17_18'] = 0
+df_lstm_2.loc[df_lstm_2['Season']=='2017/18', '17_18'] = 1
+# df_lstm_2['16_17'] = 0
+# df_lstm_2.loc[df_lstm_2['Season']=='2016/17', '16_17'] = 1
+df_lstm_2 = df_lstm_2.groupby(['Team']).sum()[['18_19','17_18']] # ,'16_17'
+df_lstm_2 = df_lstm_2.loc[(df_lstm_2['18_19']==1) & (df_lstm_2['17_18']==1)].reset_index()
+
+df_lstm = df_lstm.loc[(df_lstm['Team'].isin(list(df_lstm_2.Team.unique()))) & (df['Season'].isin(['2018/19','2017/18']))]
+
+df_lstm.set_index(['Team', 'Season'], inplace = True)
+
+X_lstm = df_
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
