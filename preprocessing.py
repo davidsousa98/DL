@@ -329,9 +329,9 @@ X_test = df_test.drop(columns=['Points', 'Season', 'League']).set_index('Team')
 y_test = df_test['Points']
 
 # Feature Selection
-variables = ['Goals','Corners_p/goal_against','Corners','Shots_target','Total_cards_against',
-             'Shots_precision_against','Fouls','Shots_p/goal','Shots_target_against','Corners_p/goal',
-             'Corners_against','Goals_against']
+variables = ['Goals', 'Corners_p/goal_against', 'Corners', 'Shots_target', 'Total_cards_against',
+             'Shots_precision_against', 'Fouls', 'Shots_p/goal', 'Shots_target_against', 'Corners_p/goal',
+             'Corners_against', 'Goals_against']
 
 scaler = StandardScaler().fit(X_train[variables])
 scaler_X_train = pd.DataFrame(scaler.transform(X_train[variables]), columns=X_train[variables].columns)
@@ -340,7 +340,7 @@ scaler_X_train = scaler_X_train[variables]
 scaler_X_test = scaler_X_test[variables]
 
 # Lasso Regression
-def plot_importance(coef,name):
+def plot_importance(coef, name):
     imp_coef = coef.sort_values()
     plt.figure(figsize=(8,10))
     imp_coef.plot(kind="barh")
@@ -370,7 +370,7 @@ correlation_matrix(scaler_X_train)
 
 # Seed value
 # Apparently you may use different seed values at each stage
-seed_value= 0
+seed_value = 0
 
 # 1. Set the `PYTHONHASHSEED` environment variable at a fixed value and deactivate the GPU
 import os
@@ -423,12 +423,11 @@ Keras_estimator = KerasRegressor(build_fn=build_model_grid)
 
 param_grid = {
     'epochs': [25],
-    'activation': ['selu'], # linear,hard_sigmoid,softmax,softplus,softsign
-    'dense_layer_sizes': combination_layers(50, 70, 2),
-    'regularizers':['l2'], # ,'l1_l2'
-    'initializer': ['random_normal'], # 'identity', 'zeros', 'ones', 'constant', lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
-    # 'batch_size':[2, 16, 32],
-    'optimizer':['sgd'] #Adagrad, Nadam, Adadelta,'Adamax'
+    'activation': ['relu', 'tanh', 'sigmoid', 'softmax', 'elu'], #linear,hard_sigmoid,softmax,softplus,softsign
+    'dense_layer_sizes': combination_layers(10, 35, 3),
+    'regularizers': ['l1','l2','l1_l2'],
+    'initializer': ['random_normal', 'identity', 'constant'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
+    'optimizer': ['RMSprop', 'Adam', 'sgd', 'Adadelta'] #Adagrad, Nadam, Adadelta,'Adamax'
 }
 
 grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error',
@@ -463,24 +462,25 @@ def save_excel(dataframe, sheetname, filename="gridresults"):
     writer.close()
 
 gridresults = pd.DataFrame(grid_result.cv_results_)
-save_excel(gridresults, "2hidden50to70")
+save_excel(gridresults, "hidden505050_var12")
 
-########################################################################################################################
-# Define
-y_train = y_train.to_numpy()
-
+# Define model
 def build_model():
     reset_seeds() # guarantee reproducibility
     model = models.Sequential()
-    model.add(layers.Dense(53, activation='selu', kernel_regularizer='l2', kernel_initializer='random_normal',
+    model.add(layers.Dense(28, activation='selu', kernel_regularizer='l2', kernel_initializer='random_normal',
                            input_shape=(scaler_X_train.shape[1],)))
-    model.add(layers.Dense(67, activation='selu', kernel_regularizer='l2', kernel_initializer='random_normal'))
+    model.add(layers.Dense(42, activation='selu', kernel_regularizer='l2', kernel_initializer='random_normal'))
     model.add(layers.Dense(1))
     # model.add(Dropout(0.2))
     model.compile(optimizer='sgd', loss='mse', metrics=['mae'])
     return model
 
-num_epochs = 100
+callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', mode='min', patience=7),
+                  keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
+
+y_train = y_train.to_numpy()
+num_epochs = 59
 
 #cvscores_train = []
 cvscores_val = []
@@ -513,8 +513,27 @@ mae_values = history_dict['mae']
 val_mae_values = history_dict['val_mae']
 epochs = range(0, len(history_dict['mae']))
 
-plt.plot(epochs[5:], mae_values[5:], 'bo', label='Training mae')
-plt.plot(epochs[5:], val_mae_values[5:], 'b', label='Validation mae')
+reg_graph = pd.DataFrame()
+reg_graph['l2'] = history_dict['val_mae']
+reg_graph['l1'] = history_dict['val_mae']
+reg_graph['l1_l2'] = history_dict['val_mae']
+opt_graph['rmsprop'] = history_dict['val_mae']
+opt_graph['random_uniform'] = history_dict['val_mae']
+
+
+plt.plot(epochs[5:], reg_graph['l2'][5:], 'b', label='l2', color='blue')
+plt.plot(epochs[5:], reg_graph['l1'][5:], 'b', label='l1', color='red')
+plt.plot(epochs[5:], reg_graph['l1_l2'][5:], 'b', label='l1_l2', color='black')
+# plt.plot(epochs[5:], opt_graph['rmsprop'][5:], 'b', label='rmsprop', color='green')
+#plt.plot(epochs[5:], opt_graph['random_uniform'][5:], 'b', label='random_uniform', color='orange')
+plt.title('Validation MAE - Regularizers')
+plt.xlabel('Epochs')
+plt.ylabel('Mean Absolute Error')
+plt.legend()
+plt.show()
+
+plt.plot(epochs[2:], mae_values[2:], 'bo', label='Training mae')
+plt.plot(epochs[2:], val_mae_values[2:], 'b', label='Validation mae')
 plt.title('Training and validation mae')
 plt.xlabel('Epochs')
 plt.ylabel('Mean Absolute Error')
