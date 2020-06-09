@@ -15,6 +15,7 @@ import keras
 from keras.wrappers.scikit_learn import KerasRegressor
 from keras import layers, models, regularizers
 from keras.layers import Dropout, Dense, TimeDistributed, LSTM
+import xarray as xr
 
 def get_files_zip(zip):
     """
@@ -553,20 +554,135 @@ final_classification = final_classification.sort_values(by = ['Points'], ascendi
 
 # Data preprocessing
 df_lstm = df_train.copy()
+df_lstm_test = df_test.copy()
 
+
+# Selecting Observations
 df_lstm_2 = df_lstm[['Team', 'Season']].copy()
 df_lstm_2['18_19'] = 0
 df_lstm_2.loc[df_lstm_2['Season']=='2018/19', '18_19'] = 1
 df_lstm_2['17_18'] = 0
 df_lstm_2.loc[df_lstm_2['Season']=='2017/18', '17_18'] = 1
-# df_lstm_2['16_17'] = 0
-# df_lstm_2.loc[df_lstm_2['Season']=='2016/17', '16_17'] = 1
-df_lstm_2 = df_lstm_2.groupby(['Team']).sum()[['18_19','17_18']] # ,'16_17'
+df_lstm_2 = df_lstm_2.groupby(['Team']).sum()[['18_19','17_18']]
 df_lstm_2 = df_lstm_2.loc[(df_lstm_2['18_19']==1) & (df_lstm_2['17_18']==1)].reset_index()
 
-df_lstm = df_lstm.loc[(df_lstm['Team'].isin(list(df_lstm_2.Team.unique()))) & (df['Season'].isin(['2018/19','2017/18']))]
+df_lstm = df_lstm.loc[(df_lstm['Team'].isin(list(df_lstm_2.Team.unique()))) & (df_lstm['Season'].isin(['2018/19','2017/18']))]
+df_lstm_test = df_lstm_test.loc[df_lstm_test['Team'].isin(list(df_lstm_2.Team.unique()))]
 
 df_lstm.set_index(['Team', 'Season'], inplace = True)
+df_lstm_test.set_index(['Team', 'Season'], inplace = True)
 
-X_lstm = df_
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
+
+# Setting dependent ad independent variables and train, test dataset splits
+X_lstm = df_lstm.drop(columns = ['Points'])
+y_lstm = df_lstm[['Points']]
+X_lstm_test = df_lstm_test.drop(columns = ['Points'])
+y_lstm_test = df_lstm_test[['Points']]
+
+
+X_lstm_train = X_lstm[86:]
+X_lstm_val = X_lstm[:86]
+y_lstm_train = y_lstm[86:]
+y_lstm_val = y_lstm[:86]
+
+# Feature Selection
+variables_lstm = ['Goals','Corners_p/goal_against','Corners','Shots_target','Total_cards_against',
+                  'Shots_precision_against','Fouls','Shots_p/goal','Shots_target_against','Corners_p/goal',
+                  'Corners_against','Goals_against']
+
+X_lstm = X_lstm[variables_lstm]
+X_lstm_train = X_lstm_train[variables_lstm]
+X_lstm_val = X_lstm_val[variables_lstm]
+X_lstm_test = X_lstm_test[variables_lstm]
+
+
+# Standardizing
+scaler = StandardScaler().fit(X_lstm[variables_lstm])
+scaler_X_lstm= pd.DataFrame(scaler.transform(X_lstm[variables_lstm]), columns=X_lstm[variables_lstm].columns, index= X_lstm.index)
+scaler_X_lstm_train= pd.DataFrame(scaler.transform(X_lstm_train[variables_lstm]), columns=X_lstm_train[variables_lstm].columns, index= X_lstm_train.index)
+scaler_X_lstm_val = pd.DataFrame(scaler.transform(X_lstm_val[variables_lstm]), columns=X_lstm_val[variables_lstm].columns, index= X_lstm_val.index)
+scaler_X_lstm_test = pd.DataFrame(scaler.transform(X_lstm_test[variables_lstm]), columns=X_lstm_test[variables_lstm].columns, index= X_lstm_test.index)
+
+scaler_X_lstm = scaler_X_lstm[variables_lstm]
+scaler_X_lstm_train = scaler_X_lstm_train[variables_lstm]
+scaler_X_lstm_val = scaler_X_lstm_val[variables_lstm]
+scaler_X_lstm_test = scaler_X_lstm_test[variables_lstm]
+
+
+scaler_X_lstm = np.array(scaler_X_lstm).reshape(143, 2, 12)
+y_lstm = np.array(y_lstm).reshape(143, 2, 1)
+
+scaler_X_lstm_train = np.array(scaler_X_lstm_train).reshape(100, 2, 12)
+y_lstm_train = np.array(y_lstm_train).reshape(100, 2, 1)
+
+scaler_X_lstm_val = np.array(scaler_X_lstm_val).reshape(43, 2, 12)
+y_lstm_val = np.array(y_lstm_val).reshape(43, 2, 1)
+
+scaler_X_lstm_test = np.array(scaler_X_lstm_test).reshape(128, 1, 12)
+y_lstm_test = np.array(y_lstm_test).reshape(128, 1, 1)
+
+
+
+##################################################### MODEL ############################################################
+# define LSTM configuration
+# create LSTM
+reset_seeds()  # guarantee reproducibility
+model = models.Sequential()
+model.add(LSTM(50, input_shape=(2, len(variables)), return_sequences=True))
+model.add(TimeDistributed(Dense(1)))
+model.compile(loss='mean_absolute_error', optimizer='sgd')
+print(model.summary())
+
+# train LSTM
+model.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2)
+
+# evaluate
+scores_lstm_val = model.evaluate(scaler_X_lstm_val, y_lstm_val, verbose=0)
+print(scores_lstm_val)
+
+
+# Fit to all the model
+model.fit(scaler_X_lstm, y_lstm)
+
+# # Predict Season 2019/20
+# Lstm_pred_1920 = model.predict(scaler_X_lstm_test)
+
+
+
+# callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=7)]
+#
+# # Define model
+# def build_model_grid_lstm(dense_layer_sizes = [15], optimizer='RMSprop'):
+#     reset_seeds()
+#     model.add(LSTM(dense_layer_sizes[0], input_shape=(2, len(variables)), return_sequences=True))
+#     model.add(TimeDistributed(Dense(1)))
+#     model.compile(loss='mean_absolute_error', optimizer=optimizer)
+#     return model
+
+
+# # Grid Search
+# k = 5
+# cv = KFold(n_splits=k, shuffle=True, random_state=15)
+# Keras_estimator = KerasRegressor(build_fn=build_model_grid_lstm)
+#
+#
+#
+# param_grid_lstm = {
+#                     'epochs': [25],
+#                     # 'activation': ['selu', 'elu', 'relu', 'tanh', 'sigmoid'],  # linear,hard_sigmoid,softmax,softplus,softsign
+#                     # 'dense_layer_sizes': combination_layers(30, 31, 1),
+#                     'optimizer': ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
+#                 }
+#
+# grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid_lstm, n_jobs=-1, cv=cv,
+#                     scoring='neg_mean_absolute_error',
+#                     return_train_score=True, verbose=1)
+# grid_result = grid.fit(scaler_X_lstm_train2, y_lstm_train2)
+#
+# # Summary of results
+# print('Mean test score: {}'.format(np.mean(grid.cv_results_['mean_test_score'])))
+# print('Mean train score: {}'.format(np.mean(grid.cv_results_['mean_train_score'])))
+# print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+
+
+
