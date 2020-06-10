@@ -272,7 +272,7 @@ seriea = final_classification.loc[final_classification['League'] == 'Serie A']
 seriea.reset_index(inplace=True, drop=True)
 seriea.index += 1
 
-# Classification table for 'Premier LEague'
+# Classification table for 'Premier League'
 premierleague = final_classification.loc[final_classification['League'] == 'Premier League']
 premierleague.reset_index(inplace=True, drop=True)
 premierleague.index += 1
