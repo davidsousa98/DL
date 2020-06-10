@@ -150,13 +150,13 @@ df_grouped = df_stats.groupby('HomeTeam').count()
 df_home = filled_df.groupby(['HomeTeam', 'Season']).mean()
 df_away = filled_df.groupby(['AwayTeam', 'Season']).mean()
 
-#Change the names for concatenation purposes
+# Change the names for concatenation purposes
 df_away_copy = df_away.copy()
 df_away_copy.columns = ['FTAG','FTHG','HTAG','HTHG','AS','HS','AST','HST','AF','HF','AC','HC',
                         'AY','HY','AR','HR']
 
 
-#Average Home and Away games to simplify data and have info by game
+# Average Home and Away games to simplify data and have info by game
 df_join = pd.concat([df_home,df_away_copy], axis = 1)
 df_join = (df_join.groupby(lambda x:x, axis=1).sum())/2
 
@@ -343,7 +343,7 @@ def plot_importance(coef, name):
     imp_coef = coef.sort_values()
     plt.figure(figsize=(8,10))
     imp_coef.plot(kind="barh")
-    plt.title("Feature importance using " + name + " Model")
+    plt.title("Feature importance using " + name + " regression")
     plt.show()
 
 reg = LassoCV()
@@ -361,7 +361,6 @@ plot_importance(coef_ridge, 'Ridge')
 
 # Correlation after feature selection
 correlation_matrix(scaler_X_train)
-
 
 #########################################   SET A ENVIRONMENT FOR RANDOM STATE  ########################################
 # https://stackoverflow.com/questions/59075244/if-keras-results-are-not-reproducible-whats-the-best-practice-for-comparing-mo
@@ -415,7 +414,7 @@ callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=7)]
                   # keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
 
 
-#Grid Search
+# Grid Search
 k = 5
 cv = KFold(n_splits=k, shuffle=True, random_state=15)
 Keras_estimator = KerasRegressor(build_fn=build_model_grid)
@@ -481,55 +480,34 @@ callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', mode='min', p
 y_train = y_train.to_numpy()
 num_epochs = 59
 
+from sklearn.metrics import r2_score
 #cvscores_train = []
 cvscores_val = []
+rsquare_val = []
 for train, val in cv.split(scaler_X_train, y_train):
     # Create model
     model = build_model()
     # Fit the model
     history = model.fit(scaler_X_train.loc[train], y_train[train], validation_data=(scaler_X_train.loc[val], y_train[val]),
-                         epochs=num_epochs, callbacks=callbacks_list, verbose=0)
+                         epochs=num_epochs, verbose=0) # , callbacks=callbacks_list
     # Evaluate the model
     # scores_train = model.evaluate(scaler_X_train.loc[train], y_train[train], verbose=0)
     scores_val = model.evaluate(scaler_X_train.loc[val], y_train[val], verbose=0)
+    labels_val = model.predict(scaler_X_train.loc[val])
+    rsquare_val.append(r2_score(y_train[val], labels_val) * 100)
     print("%s: %.2f%%" % (model.metrics_names[1], scores_val[1]*100))
+    print("R-squared: %.2f%%" % (r2_score(y_train[val], labels_val) * 100))
     # cvscores_train.append(scores_train[1] * 100)
     cvscores_val.append(scores_val[1] * 100)
-# print("MAE training score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_train), np.std(cvscores_train)))
-print("MAE validation score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_val), np.std(cvscores_val)))
-
-# Plot train and validation MAE
-# average_mae_history = [np.mean([x[i] for x in all_mae_histories]) for i in range(len(dict_history["epoch"])-2)]
-#
-# plt.plot(range(1, len(average_mae_history) + 1), average_mae_history)
-# plt.xlabel('Epochs')
-# plt.ylabel('Validation MAE')
-# plt.show()
+# print("MAPE training score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_train), np.std(cvscores_train)))
+print("MAPE validation score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_val), np.std(cvscores_val)))
+print("R-Squared validation score: %.2f%% (+/- %.2f%%)" % (np.mean(rsquare_val), np.std(rsquare_val)))
 
 plt.clf()
 history_dict = history.history
 mae_values = history_dict['mae']
 val_mae_values = history_dict['val_mae']
 epochs = range(0, len(history_dict['mae']))
-
-reg_graph = pd.DataFrame()
-reg_graph['l2'] = history_dict['val_mae']
-reg_graph['l1'] = history_dict['val_mae']
-reg_graph['l1_l2'] = history_dict['val_mae']
-opt_graph['rmsprop'] = history_dict['val_mae']
-opt_graph['random_uniform'] = history_dict['val_mae']
-
-
-plt.plot(epochs[5:], reg_graph['l2'][5:], 'b', label='l2', color='blue')
-plt.plot(epochs[5:], reg_graph['l1'][5:], 'b', label='l1', color='red')
-plt.plot(epochs[5:], reg_graph['l1_l2'][5:], 'b', label='l1_l2', color='black')
-# plt.plot(epochs[5:], opt_graph['rmsprop'][5:], 'b', label='rmsprop', color='green')
-#plt.plot(epochs[5:], opt_graph['random_uniform'][5:], 'b', label='random_uniform', color='orange')
-plt.title('Validation MAE - Regularizers')
-plt.xlabel('Epochs')
-plt.ylabel('Mean Absolute Error')
-plt.legend()
-plt.show()
 
 plt.plot(epochs[2:], mae_values[2:], 'bo', label='Training mae')
 plt.plot(epochs[2:], val_mae_values[2:], 'b', label='Validation mae')
@@ -540,11 +518,64 @@ plt.legend()
 plt.show()
 
 
+# Plot train and validation MAE
+# average_mae_history = [np.mean([x[i] for x in all_mae_histories]) for i in range(len(dict_history["epoch"])-2)]
+#
+# plt.plot(range(1, len(average_mae_history) + 1), average_mae_history)
+# plt.xlabel('Epochs')
+# plt.ylabel('Validation MAE')
+# plt.show()
 
+# import plotly.offline as pyo
+# from plotly import graph_objs as go
+# from plotly.subplots import make_subplots
+
+# result_graph = pd.DataFrame([['1 layer', 'MAPE', np.mean(cvscores_val)]], columns=['Topology', 'Metric', 'Value'])
+# result_graph = result_graph.append(pd.DataFrame([['1 layer', 'R-Squared', np.mean(rsquare_val)]], columns=['Topology', 'Metric', 'Value']))
+# result_graph = result_graph.append(pd.DataFrame([['2 layers', 'MAPE', np.mean(cvscores_val)]], columns=['Topology', 'Metric', 'Value']))
+# result_graph = result_graph.append(pd.DataFrame([['2 layers', 'R-Squared', np.mean(rsquare_val)]], columns=['Topology', 'Metric', 'Value']))
+# result_graph = result_graph.append(pd.DataFrame([['3 layer', 'MAPE', np.mean(cvscores_val)]], columns=['Topology', 'Metric', 'Value']))
+# result_graph = result_graph.append(pd.DataFrame([['3 layer', 'R-Squared', np.mean(rsquare_val)]], columns=['Topology', 'Metric', 'Value']))
+# result_graph = result_graph.round(2)
+
+# fig = make_subplots(specs=[[{"secondary_y": True}]])
+#
+# fig.add_trace(
+#     go.Bar(
+#         x=result_graph.loc[result_graph['Metric'] == 'MAPE']["Topology"], y=result_graph.loc[result_graph['Metric'] == 'MAPE']["Value"], name="MAPE",
+#         text=result_graph.loc[result_graph['Metric'] == 'MAPE']["Value"], textposition='outside', offsetgroup=0),
+#         secondary_y=False
+#     )
+#
+# fig.add_trace(
+#     go.Bar(
+#         x=result_graph.loc[result_graph['Metric'] == 'R-Squared']["Topology"], y=result_graph.loc[result_graph['Metric'] == 'R-Squared']["Value"], name="R-Squared",
+#         text=result_graph.loc[result_graph['Metric'] == 'R-Squared']["Value"], textposition='outside', offsetgroup=1),
+#         secondary_y=True
+#     )
+#
+# fig.update_yaxes(title_text="Mean Absolute Percentage Error (MAPE)", range=[0, 50], secondary_y=False)
+# fig.update_yaxes(title_text="R-Squared (%)", range=[50, 100], secondary_y=True)
+# fig.update_layout(title='Topology comparison', xaxis_title="Topology", barmode='group')
+# pyo.plot(fig)
+
+# reg_graph = pd.DataFrame()
+# reg_graph['l2'] = history_dict['val_mae']
+# reg_graph['l1'] = history_dict['val_mae']
+# reg_graph['l1_l2'] = history_dict['val_mae']
+
+# plt.plot(epochs[5:], reg_graph['l2'][5:], 'b', label='l2', color='blue')
+# plt.plot(epochs[5:], reg_graph['l1'][5:], 'b', label='l1', color='red')
+# plt.plot(epochs[5:], reg_graph['l1_l2'][5:], 'b', label='l1_l2', color='black')
+# plt.title('Validation MAE - Regularizers')
+# plt.xlabel('Epochs')
+# plt.ylabel('Mean Absolute Error')
+# plt.legend()
+# plt.show()
 
 # Predict the test output
 scores_test = model.evaluate(scaler_X_test, y_test, verbose=0)
-print("Test MAE:", scores_test[1]*100)
+print("Test MAPE: %.2f%%" % (scores_test[1]*100))
 labels_test = model.predict(scaler_X_test)
 
 # Number of Matches Played
@@ -558,15 +589,29 @@ matches_dict = { 'Liga NOS' : 34,
                  'Bundesliga' : 34,
                  'Jupiler' : 40,
                  'Super Lig' : 34}
-games = pd.DataFrame(matches_dict.values(), columns = ['Matches_Played'])
+games = pd.DataFrame(matches_dict.values(), columns=['Matches_Played'])
 games['League'] = matches_dict.keys()
 final_classification = df_league_games.reset_index().merge(games, how='left', on=['League'])
 final_classification['points_per_game'] = labels_test
 final_classification['Points'] = round(final_classification['points_per_game'] * final_classification['Matches_Played'])
-final_classification = final_classification.sort_values(by = ['Points'], ascending=False)
+final_classification = final_classification.sort_values(by='points_per_game', ascending=False)
+final_classification.reset_index(inplace=True, drop=True)
+final_classification.index += 1
+final_classification = final_classification[['Team', 'League', 'points_per_game', 'Matches_Played', 'Points']]
+final_classification.columns = ['Team', 'League', 'Points per game', 'Matches Played', 'Points']
 
 
+liganos = final_classification.loc[final_classification['League'] == 'Liga NOS']
+liganos.reset_index(inplace=True, drop=True)
+liganos.index += 1
 
+seriea = final_classification.loc[final_classification['League'] == 'Serie A']
+seriea.reset_index(inplace=True, drop=True)
+seriea.index += 1
+
+premierleague = final_classification.loc[final_classification['League'] == 'Premier League']
+premierleague.reset_index(inplace=True, drop=True)
+premierleague.index += 1
 
 ###################################### LSTM ######################################
 
