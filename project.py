@@ -218,7 +218,7 @@ for train, val in cv.split(scaler_X_train, y_train):
 print("MAPE validation score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_val), np.std(cvscores_val)))
 print("R-Squared validation score: %.2f%% (+/- %.2f%%)" % (np.mean(rsquare_val), np.std(rsquare_val)))
 
-# Plot train and validation error and loss
+# Plot train and validation error
 plt.clf()
 history_dict = history.history
 mae_values = history_dict['mae']
