@@ -1,68 +1,58 @@
-# Import libraries
+#############################################   SAMPLE  ################################################################
 import matplotlib
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
+
 import pandas as pd
 import numpy as np
 import zipfile as zp
 from sklearn.impute import KNNImputer
 import matplotlib.pyplot as plt
 import seaborn as sb
-from sklearn.linear_model import LassoCV, RidgeCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import GridSearchCV, KFold, train_test_split, cross_val_score
-from itertools import combinations_with_replacement
-import keras
-from keras.wrappers.scikit_learn import KerasRegressor
-from keras import layers, models, regularizers
-from keras.layers import Dropout, Dense, TimeDistributed, LSTM, Input
-import xarray as xr
+
+
 
 def get_files_zip(zip):
     """
-        Function that lists files inside the .zip folders.
+    Function that lists files inside the .zip folders.
 
-        :param zip: name of the zip file.
+    :param zip: name of the zip file.
+
     """
     if zip == 'game_stats':
         with zp.ZipFile(r"./data/Game_stats.zip") as myzip:
             list = myzip.namelist()
-    elif zip =='league_table':
+    elif zip == 'league_table':
         with zp.ZipFile(r"./data/league_table.zip") as myzip:
             list = myzip.namelist()
     return list
 
+
 def append_files(files):
     """
-        Function that reads and appends files inside the .zip folders.
+    Function that reads and appends files inside the .zip folders.
 
-        :param files: list of strings with paths to files.
+    :param files: list of strings with paths to files.
 
-        Returns:
-            - DataFrame with all the files appended.
-        """
+    Returns:
+        - DataFrame with all the files appended.
+
+    """
     list_files = []
     for file in files:
         try:
             with zp.ZipFile("./data/Game_stats.zip") as myzip:
                 with myzip.open(file) as myfile:
-                    df = pd.read_csv(myfile)
-                    list_files.append(df)
+                    df_csv = pd.read_csv(myfile)
+                    list_files.append(df_csv)
 
         except Exception:
             with zp.ZipFile("./data/league_table.zip") as myzip:
                 with myzip.open(file) as myfile:
-                    df = pd.read_excel(myfile)
-                    list_files.append(df)
+                    df_excel = pd.read_excel(myfile)
+                    list_files.append(df_excel)
 
-    df_appened = pd.concat(list_files, axis=0, sort=False)
-    return df_appened.reset_index()
-
-def combination_layers(min_neurons,max_neurons,n_layers):
-    l = []
-    for i in range(min_neurons,max_neurons):
-        l.append(i)
-    layersize = list(combinations_with_replacement(l,n_layers))
-    return layersize
+    df_append = pd.concat(list_files, axis=0, sort=False)
+    return df_append.reset_index()
 
 
 # Reading files from zip without extracting them
@@ -73,13 +63,14 @@ get_files_zip('league_table')
 df_stats_full = append_files(get_files_zip('game_stats'))
 df_table_full = append_files(get_files_zip('league_table'))
 
-####################################################### EXPLORE  #######################################################
+###############################################   EXPLORE  #############################################################
+
 
 # Slice DataFrames
-df_stats = df_stats_full[['Div','Date','HomeTeam','AwayTeam','FTHG','FTAG','HTHG','HTAG','HS','AS','HST','AST','HF',
-                          'AF','HC','AC','HY','AY','HR','AR']]
+df_stats = df_stats_full[['Div', 'Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG', 'HTHG', 'HTAG', 'HS', 'AS', 'HST',
+                          'AST', 'HF', 'AF', 'HC', 'AC', 'HY', 'AY', 'HR', 'AR']]
 
-df_table = df_table_full[['Squad', 'MP','GDiff', 'Pts', 'Season']]
+df_table = df_table_full[['Squad', 'MP', 'GDiff', 'Pts', 'Season']]
 
 # Missing values treatment
 missings_stats = df_stats.isnull().sum()
@@ -102,8 +93,7 @@ filled_df = pd.DataFrame(imputer.fit_transform(temp_df))
 filled_df.columns = temp_df.columns
 filled_df = pd.concat([filled_df, df_stats["Div"], df_stats["Date"], df_stats["HomeTeam"], df_stats["AwayTeam"]], axis=1)
 
-###########################################  DATA PREPARATION  #########################################################
-
+## Data Preparation
 # Season variable
 filled_df['year'] = pd.DatetimeIndex(filled_df['Date']).year
 
@@ -153,19 +143,19 @@ df_away = filled_df.groupby(['AwayTeam', 'Season']).mean()
 
 # Change the names for concatenation purposes
 df_away_copy = df_away.copy()
-df_away_copy.columns = ['FTAG','FTHG','HTAG','HTHG','AS','HS','AST','HST','AF','HF','AC','HC',
-                        'AY','HY','AR','HR']
+df_away_copy.columns = ['FTAG', 'FTHG', 'HTAG', 'HTHG', 'AS', 'HS', 'AST', 'HST', 'AF', 'HF', 'AC', 'HC',
+                        'AY', 'HY', 'AR', 'HR']
 
 
 # Average Home and Away games to simplify data and have info by game
-df_join = pd.concat([df_home,df_away_copy], axis = 1)
-df_join = (df_join.groupby(lambda x:x, axis=1).sum())/2
+df_join = pd.concat([df_home, df_away_copy], axis=1)
+df_join = (df_join.groupby(lambda x: x, axis=1).sum())/2
 
 
 # Add the column League to the new df
-filled_df_sliced = filled_df[['HomeTeam','League']].drop_duplicates()
-df_join = df_join.reset_index(level=[0,1])
-df_join = pd.merge(df_join,filled_df_sliced,on = 'HomeTeam')
+filled_df_sliced = filled_df[['HomeTeam', 'League']].drop_duplicates()
+df_join = df_join.reset_index(level=[0, 1])
+df_join = pd.merge(df_join, filled_df_sliced, on='HomeTeam')
 
 
 # Ensure that the clubs have the same name in both DataFrames
@@ -182,24 +172,25 @@ home_team_names = df_home.HomeTeam.unique()
 table_team_names_df = pd.DataFrame(sorted(table_team_names), columns=['table_names'])
 home_team_names_df = pd.DataFrame(sorted(home_team_names), columns=['home_names'])
 
+# See which team names are spelled differently
 diff_names = []
 for team in table_team_names:
     if team not in home_team_names:
         diff_names.append(team)
 diff_names = pd.DataFrame(sorted(diff_names))
 
-
+# Save pair of names into excel file
 pair_names = pd.read_excel(r'./data/diff_names.xlsx', header=None)
 pair_names.columns = ["Squad", "Team"]
 
+# Modify and ensure that all team names are equal
 df_table = df_table.merge(pair_names, on="Squad", how="left")
-
 df_table.loc[df_table["Team"].isnull(), "Team"] = df_table["Squad"]
 df_table.drop(columns='Squad', inplace=True)
-
 df_join.rename(columns={"HomeTeam": "Team"}, inplace=True)
 df = df_join.merge(df_table, how='inner', on=['Team', 'Season'])
 
+# Change variable names for more intuitive labels
 df = df[["Team", "Season", "League", "FTHG", "FTAG", "HTHG", "HTAG", "HS", "AS", "HST", "AST", "HC", "AC",
          "HF", "AF", "HY", "AY", "HR", "AR", "goaldiff_per_game", "points_per_game"]]
 
@@ -260,24 +251,33 @@ sb.distplot(df_train["Goal_diff"], ax=axes[5, 1], kde=True)
 sb.distplot(df_train["Points"], ax=axes[5, 2], kde=True)
 plt.tight_layout()
 
-####################################################### MODIFY #########################################################
+###############################################  MODIFY  ###############################################################
 
-# Correlation analysis between original variables
+
 def correlation_matrix(df):
-    plt.rcParams['figure.figsize'] = (12,12)
+    """
+    Function to create and plot correlation matrix between variablles.
+
+    :param df: dataframe to assess the correlations.
+
+    """
+
+    plt.rcParams['figure.figsize'] = (12, 12)
     corr_matrix = df.corr()
     mask = np.zeros_like(corr_matrix, dtype=np.bool)
     mask[np.triu_indices_from(mask)] = True
     sb.heatmap(data=corr_matrix, mask=mask, center=0, annot=True, linewidths=2, cmap='coolwarm')
     plt.tight_layout()
 
+
+# Plot correlation matrix
 correlation_matrix(df_train)
 
 # Drop variable 'Goal diff' since it is very correlated w/ Points
 df_train = df_train.drop(columns='Goal_diff')
 df_test = df_test.drop(columns='Goal_diff')
 
-# Transform and create variables
+## Transform and create variables
 # Metrics per goals
 df_train['Shots_p/goal'] = df_train['Shots']/df_train['Goals']
 df_train['Shots_p/goal_against'] = df_train['Shots_against']/df_train['Goals_against']
@@ -328,430 +328,6 @@ df_league_games = df_league_games.set_index('Team')
 X_test = df_test.drop(columns=['Points', 'Season', 'League']).set_index('Team')
 y_test = df_test['Points']
 
-# Feature Selection
-variables = ['Goals', 'Corners_p/goal_against', 'Corners', 'Shots_target', 'Total_cards_against',
-             'Shots_precision_against', 'Fouls', 'Shots_p/goal', 'Shots_target_against', 'Corners_p/goal',
-             'Corners_against', 'Goals_against']
-
-scaler = StandardScaler().fit(X_train[variables])
-scaler_X_train = pd.DataFrame(scaler.transform(X_train[variables]), columns=X_train[variables].columns)
-scaler_X_test = pd.DataFrame(scaler.transform(X_test[variables]), columns=X_test[variables].columns)
-scaler_X_train = scaler_X_train[variables]
-scaler_X_test = scaler_X_test[variables]
-
-# Lasso Regression
-def plot_importance(coef, name):
-    imp_coef = coef.sort_values()
-    plt.figure(figsize=(8,10))
-    imp_coef.plot(kind="barh")
-    plt.title("Feature importance using " + name + " regression")
-    plt.show()
-
-reg = LassoCV()
-reg.fit(scaler_X_train, y_train)
-coef = pd.Series(reg.coef_, index=scaler_X_train.columns)
-coef.sort_values()
-plot_importance(coef, 'Lasso')
-
-# Ridge Regression
-ridge = RidgeCV()
-ridge.fit(X=scaler_X_train, y=y_train)
-coef_ridge = pd.Series(ridge.coef_, index=scaler_X_train.columns)
-print(coef_ridge.sort_values())
-plot_importance(coef_ridge, 'Ridge')
-
-# Correlation after feature selection
-correlation_matrix(scaler_X_train)
-
-#########################################   SET A ENVIRONMENT FOR RANDOM STATE  ########################################
-# https://stackoverflow.com/questions/59075244/if-keras-results-are-not-reproducible-whats-the-best-practice-for-comparing-mo
-# https://stackoverflow.com/questions/50659482/why-cant-i-get-reproducible-results-in-keras-even-though-i-set-the-random-seeds
-
-# Seed value
-# Apparently you may use different seed values at each stage
-seed_value = 0
-
-# 1. Set the `PYTHONHASHSEED` environment variable at a fixed value and deactivate the GPU
-import os
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
-os.environ['PYTHONHASHSEED']=str(seed_value)
-
-#2. Function to set random seed as a constant
-import tensorflow as tf
-import random
-
-def reset_seeds(reset_graph_with_backend=None):
-    if reset_graph_with_backend is not None:
-        K = reset_graph_with_backend
-        K.clear_session()
-        tf.compat.v1.reset_default_graph()
-        # print("KERAS AND TENSORFLOW GRAPHS RESET")
-
-    np.random.seed(1)
-    random.seed(2)
-    tf.compat.v1.set_random_seed(3)
-    # print("RANDOM SEEDS RESET")
-
-##################################################### MODEL ############################################################
-# https://stackoverflow.com/questions/32419510/how-to-get-reproducible-results-in-keras link for random state keras
-# import joblib
-# joblib.Parallel(backend='multiprocessing')
-
-#Define model
-def build_model_grid(dense_layer_sizes, regularizers, initializer, activation='relu', optimizer='RMSprop'):
-    reset_seeds()
-    model = models.Sequential()
-    model.add(layers.Dense(dense_layer_sizes[0], activation=activation, kernel_regularizer=regularizers,
-                           kernel_initializer=initializer, input_shape=(scaler_X_train.shape[1],)))
-    for units in dense_layer_sizes[1:]:
-        model.add(layers.Dense(units, activation=activation, kernel_regularizer=regularizers, kernel_initializer=initializer))
-        # model.add(Dropout(dropout), )
-    model.add(layers.Dense(1))
-    model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
-    return model
-
-callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=7)]
-                  # keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
-
-
-# Grid Search
-k = 5
-cv = KFold(n_splits=k, shuffle=True, random_state=15)
-Keras_estimator = KerasRegressor(build_fn=build_model_grid)
-
-param_grid = {
-    'epochs': [25],
-    'activation': ['relu', 'tanh', 'sigmoid', 'softmax', 'elu'], #linear,hard_sigmoid,softmax,softplus,softsign
-    'dense_layer_sizes': combination_layers(10, 35, 3),
-    'regularizers': ['l1','l2','l1_l2'],
-    'initializer': ['random_normal', 'identity', 'constant'], #lecun_uniform,glorot_normal,glorot_uniform,he_normal, he_uniform
-    'optimizer': ['RMSprop', 'Adam', 'sgd', 'Adadelta'] #Adagrad, Nadam, Adadelta,'Adamax'
-}
-
-grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid, n_jobs=-1, cv=cv, scoring='neg_mean_absolute_error',
-                    return_train_score=True, verbose=1)
-grid_result = grid.fit(scaler_X_train, y_train)
-
-
-# Summary of results
-print('Mean test score: {}'.format(np.mean(grid.cv_results_['mean_test_score'])))
-print('Mean train score: {}'.format(np.mean(grid.cv_results_['mean_train_score'])))
-print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-
-
-
-# Export results to excel
-def save_excel(dataframe, sheetname, filename="gridresults"):
-    """
-    Function that saves the evaluation metrics into a excel file.
-
-    :param dataframe: dataframe that contains the metrics.
-    :param sheetname: name of the sheet containing the parameterization.
-    :param filename: specifies the name of the xlsx file.
-
-    """
-    if not os.path.isfile("./data/outputs/{}.xlsx".format(filename)):
-        mode = 'w'
-    else:
-        mode = 'a'
-    writer = pd.ExcelWriter('./data/outputs/{}.xlsx'.format(filename), engine='openpyxl', mode=mode)
-    dataframe.to_excel(writer, sheet_name=sheetname)
-    writer.save()
-    writer.close()
-
-gridresults = pd.DataFrame(grid_result.cv_results_)
-save_excel(gridresults, "hidden505050_var12")
-
-# Define model
-def build_model():
-    reset_seeds() # guarantee reproducibility
-    model = models.Sequential()
-    model.add(layers.Dense(28, activation='selu', kernel_regularizer='l2', kernel_initializer='random_normal',
-                           input_shape=(scaler_X_train.shape[1],)))
-    model.add(layers.Dense(42, activation='selu', kernel_regularizer='l2', kernel_initializer='random_normal'))
-    model.add(layers.Dense(1))
-    # model.add(Dropout(0.2))
-    model.compile(optimizer='sgd', loss='mse', metrics=['mae'])
-    return model
-
-callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', mode='min', patience=7),
-                  keras.callbacks.ModelCheckpoint(filepath='my_model.h5', monitor='val_mae', save_best_only=True)]
-
-y_train = y_train.to_numpy()
-num_epochs = 59
-
-from sklearn.metrics import r2_score
-#cvscores_train = []
-cvscores_val = []
-rsquare_val = []
-for train, val in cv.split(scaler_X_train, y_train):
-    # Create model
-    model = build_model()
-    # Fit the model
-    history = model.fit(scaler_X_train.loc[train], y_train[train], validation_data=(scaler_X_train.loc[val], y_train[val]),
-                         epochs=num_epochs, verbose=0) # , callbacks=callbacks_list
-    # Evaluate the model
-    # scores_train = model.evaluate(scaler_X_train.loc[train], y_train[train], verbose=0)
-    scores_val = model.evaluate(scaler_X_train.loc[val], y_train[val], verbose=0)
-    labels_val = model.predict(scaler_X_train.loc[val])
-    rsquare_val.append(r2_score(y_train[val], labels_val) * 100)
-    print("%s: %.2f%%" % (model.metrics_names[1], scores_val[1]*100))
-    print("R-squared: %.2f%%" % (r2_score(y_train[val], labels_val) * 100))
-    # cvscores_train.append(scores_train[1] * 100)
-    cvscores_val.append(scores_val[1] * 100)
-# print("MAPE training score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_train), np.std(cvscores_train)))
-print("MAPE validation score: %.2f%% (+/- %.2f%%)" % (np.mean(cvscores_val), np.std(cvscores_val)))
-print("R-Squared validation score: %.2f%% (+/- %.2f%%)" % (np.mean(rsquare_val), np.std(rsquare_val)))
-
-plt.clf()
-history_dict = history.history
-mae_values = history_dict['mae']
-val_mae_values = history_dict['val_mae']
-epochs = range(0, len(history_dict['mae']))
-
-plt.plot(epochs[2:], mae_values[2:], 'bo', label='Training mae')
-plt.plot(epochs[2:], val_mae_values[2:], 'b', label='Validation mae')
-plt.title('Training and validation mae')
-plt.xlabel('Epochs')
-plt.ylabel('Mean Absolute Error')
-plt.legend()
-plt.show()
-
-
-# Plot train and validation MAE
-# average_mae_history = [np.mean([x[i] for x in all_mae_histories]) for i in range(len(dict_history["epoch"])-2)]
-#
-# plt.plot(range(1, len(average_mae_history) + 1), average_mae_history)
-# plt.xlabel('Epochs')
-# plt.ylabel('Validation MAE')
-# plt.show()
-
-# import plotly.offline as pyo
-# from plotly import graph_objs as go
-# from plotly.subplots import make_subplots
-
-# result_graph = pd.DataFrame([['1 layer', 'MAPE', np.mean(cvscores_val)]], columns=['Topology', 'Metric', 'Value'])
-# result_graph = result_graph.append(pd.DataFrame([['1 layer', 'R-Squared', np.mean(rsquare_val)]], columns=['Topology', 'Metric', 'Value']))
-# result_graph = result_graph.append(pd.DataFrame([['2 layers', 'MAPE', np.mean(cvscores_val)]], columns=['Topology', 'Metric', 'Value']))
-# result_graph = result_graph.append(pd.DataFrame([['2 layers', 'R-Squared', np.mean(rsquare_val)]], columns=['Topology', 'Metric', 'Value']))
-# result_graph = result_graph.append(pd.DataFrame([['3 layer', 'MAPE', np.mean(cvscores_val)]], columns=['Topology', 'Metric', 'Value']))
-# result_graph = result_graph.append(pd.DataFrame([['3 layer', 'R-Squared', np.mean(rsquare_val)]], columns=['Topology', 'Metric', 'Value']))
-# result_graph = result_graph.round(2)
-
-# fig = make_subplots(specs=[[{"secondary_y": True}]])
-#
-# fig.add_trace(
-#     go.Bar(
-#         x=result_graph.loc[result_graph['Metric'] == 'MAPE']["Topology"], y=result_graph.loc[result_graph['Metric'] == 'MAPE']["Value"], name="MAPE",
-#         text=result_graph.loc[result_graph['Metric'] == 'MAPE']["Value"], textposition='outside', offsetgroup=0),
-#         secondary_y=False
-#     )
-#
-# fig.add_trace(
-#     go.Bar(
-#         x=result_graph.loc[result_graph['Metric'] == 'R-Squared']["Topology"], y=result_graph.loc[result_graph['Metric'] == 'R-Squared']["Value"], name="R-Squared",
-#         text=result_graph.loc[result_graph['Metric'] == 'R-Squared']["Value"], textposition='outside', offsetgroup=1),
-#         secondary_y=True
-#     )
-#
-# fig.update_yaxes(title_text="Mean Absolute Percentage Error (MAPE)", range=[0, 50], secondary_y=False)
-# fig.update_yaxes(title_text="R-Squared (%)", range=[50, 100], secondary_y=True)
-# fig.update_layout(title='Topology comparison', xaxis_title="Topology", barmode='group')
-# pyo.plot(fig)
-
-# reg_graph = pd.DataFrame()
-# reg_graph['l2'] = history_dict['val_mae']
-# reg_graph['l1'] = history_dict['val_mae']
-# reg_graph['l1_l2'] = history_dict['val_mae']
-
-# plt.plot(epochs[5:], reg_graph['l2'][5:], 'b', label='l2', color='blue')
-# plt.plot(epochs[5:], reg_graph['l1'][5:], 'b', label='l1', color='red')
-# plt.plot(epochs[5:], reg_graph['l1_l2'][5:], 'b', label='l1_l2', color='black')
-# plt.title('Validation MAE - Regularizers')
-# plt.xlabel('Epochs')
-# plt.ylabel('Mean Absolute Error')
-# plt.legend()
-# plt.show()
-
-# Predict the test output
-scores_test = model.evaluate(scaler_X_test, y_test, verbose=0)
-print("Test MAPE: %.2f%%" % (scores_test[1]*100))
-labels_test = model.predict(scaler_X_test)
-
-# Number of Matches Played
-matches_dict = { 'Liga NOS' : 34,
-                 'Super League' : 30,
-                 'Eredivisie' : 34,
-                 'La Liga' : 38,
-                 'Ligue 1': 38,
-                 'Premier League' : 38,
-                 'Serie A' : 38,
-                 'Bundesliga' : 34,
-                 'Jupiler' : 40,
-                 'Super Lig' : 34}
-games = pd.DataFrame(matches_dict.values(), columns=['Matches_Played'])
-games['League'] = matches_dict.keys()
-final_classification = df_league_games.reset_index().merge(games, how='left', on=['League'])
-final_classification['points_per_game'] = labels_test
-final_classification['Points'] = round(final_classification['points_per_game'] * final_classification['Matches_Played'])
-final_classification = final_classification.sort_values(by='points_per_game', ascending=False)
-final_classification.reset_index(inplace=True, drop=True)
-final_classification.index += 1
-final_classification = final_classification[['Team', 'League', 'points_per_game', 'Matches_Played', 'Points']]
-final_classification.columns = ['Team', 'League', 'Points per game', 'Matches Played', 'Points']
-
-
-liganos = final_classification.loc[final_classification['League'] == 'Liga NOS']
-liganos.reset_index(inplace=True, drop=True)
-liganos.index += 1
-
-seriea = final_classification.loc[final_classification['League'] == 'Serie A']
-seriea.reset_index(inplace=True, drop=True)
-seriea.index += 1
-
-premierleague = final_classification.loc[final_classification['League'] == 'Premier League']
-premierleague.reset_index(inplace=True, drop=True)
-premierleague.index += 1
-
-###################################### LSTM ######################################
-
-# Data preprocessing
-df_lstm = df_train.copy()
-df_lstm_1920 = df_test.copy()
-
-
-# Selecting Observations
-df_lstm_2 = df_lstm[['Team', 'Season']].copy()
-df_lstm_2['18_19'] = 0
-df_lstm_2.loc[df_lstm_2['Season']=='2018/19', '18_19'] = 1
-df_lstm_2['17_18'] = 0
-df_lstm_2.loc[df_lstm_2['Season']=='2017/18', '17_18'] = 1
-df_lstm_2 = df_lstm_2.groupby(['Team']).sum()[['18_19','17_18']]
-df_lstm_2 = df_lstm_2.loc[(df_lstm_2['18_19']==1) & (df_lstm_2['17_18']==1)].reset_index()
-
-df_lstm_1920 = df_lstm_1920.loc[df_lstm_1920['Team'].isin(list(df_lstm_2.Team.unique()))]
-df_lstm = df_lstm.loc[(df_lstm['Team'].isin(list(df_lstm_1920.Team.unique()))) & (df_lstm['Season'].isin(['2018/19','2017/18']))]
-
-# Create multiindex and concatenate seasons
-df_lstm.set_index(['Team', 'Season'], inplace = True)
-df_lstm_1920.set_index(['Team', 'Season'], inplace = True)
-
-df_lstm = pd.concat([df_lstm, df_lstm_1920]).sort_index()
-
-# Setting dependent ad independent variables and train, test dataset splits
-X_lstm = df_lstm.drop(columns = ['Points'])
-y_lstm = df_lstm[['Points']]
-
-X_lstm_train = X_lstm[114:]
-X_lstm_val = X_lstm[:114]
-y_lstm_train = y_lstm[114:]
-y_lstm_val = y_lstm[:114]
-
-# Feature Selection
-variables_lstm = ['Goals','Corners_p/goal_against','Corners','Shots_target','Total_cards_against',
-                  'Shots_precision_against','Fouls','Shots_p/goal','Shots_target_against','Corners_p/goal',
-                  'Corners_against','Goals_against']
-
-X_lstm = X_lstm[variables_lstm]
-X_lstm_train = X_lstm_train[variables_lstm]
-X_lstm_val = X_lstm_val[variables_lstm]
-
-# Standardizing
-scaler = StandardScaler().fit(X_lstm[variables_lstm])
-scaler_X_lstm= pd.DataFrame(scaler.transform(X_lstm[variables_lstm]), columns=X_lstm[variables_lstm].columns, index= X_lstm.index)
-scaler_X_lstm_train= pd.DataFrame(scaler.transform(X_lstm_train[variables_lstm]), columns=X_lstm_train[variables_lstm].columns, index= X_lstm_train.index)
-scaler_X_lstm_val = pd.DataFrame(scaler.transform(X_lstm_val[variables_lstm]), columns=X_lstm_val[variables_lstm].columns, index= X_lstm_val.index)
-
-scaler_X_lstm = scaler_X_lstm[variables_lstm]
-scaler_X_lstm_train = scaler_X_lstm_train[variables_lstm]
-scaler_X_lstm_val = scaler_X_lstm_val[variables_lstm]
-
-
-scaler_X_lstm = np.array(scaler_X_lstm).reshape(128, 3, 12)
-y_lstm = np.array(y_lstm).reshape(128, 3, 1)
-
-scaler_X_lstm_train = np.array(scaler_X_lstm_train).reshape(90, 3, 12)
-y_lstm_train = np.array(y_lstm_train).reshape(90, 3, 1)
-
-scaler_X_lstm_val = np.array(scaler_X_lstm_val).reshape(38, 3, 12)
-y_lstm_val = np.array(y_lstm_val).reshape(38, 3, 1)
-
-
-
-##################################################### MODEL ############################################################
-# define LSTM configuration
-# create LSTM
-reset_seeds()  # guarantee reproducibility
-model = models.Sequential()
-model.add(LSTM(150, input_shape=(3, len(variables)), return_sequences= True, activation="selu"))
-model.add(TimeDistributed(Dense(1)))
-model.compile(loss='mse', optimizer='Adam')
-print(model.summary())
-
-# train LSTM
-model.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2)
-
-# evaluate
-scores_lstm_val = model.evaluate(scaler_X_lstm_val, y_lstm_val, verbose=0)
-print(scores_lstm_val)
-
-# Fit to all the model
-model.fit(scaler_X_lstm, y_lstm)
-
-# # Predict Season 2019/20
-lstm_pred = model.predict(scaler_X_lstm)
-
-cols_names = ['Team', 'Season', 'e']
-index = pd.MultiIndex.from_product([range(x) for x in lstm_pred.shape], names=cols_names)
-lstm_pred = pd.DataFrame({'Points per Game': lstm_pred.flatten()}, index=index)['Points per Game'].reset_index().drop(['e'], axis = 1)
-lstm_pred['Team'] = X_lstm.reset_index()['Team']
-lstm_pred['Season'] = X_lstm.reset_index()['Season']
-
-lstm_pred_1920 = lstm_pred.loc[lstm_pred['Season'] == '2019/20']
-lstm_pred_1920 = lstm_pred_1920.sort_values(by=['Points per Game'], ascending = False).drop(['Season'], axis = 1)
-lstm_pred_1819 = lstm_pred.loc[lstm_pred['Season'] == '2018/19']
-lstm_pred_1819 = lstm_pred_1819.sort_values(by=['Points per Game'], ascending = False).drop(['Season'], axis = 1)
-lstm_pred_1718 = lstm_pred.loc[lstm_pred['Season'] == '2017/18']
-lstm_pred_1718 = lstm_pred_1718.sort_values(by=['Points per Game'], ascending = False).drop(['Season'], axis = 1)
-
-
-
-
-# callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=7)]
-#
-# # Define model
-# def build_model_grid_lstm(dense_layer_sizes = [15], optimizer='RMSprop'):
-#     reset_seeds()
-#     model.add(LSTM(dense_layer_sizes[0], input_shape=(2, len(variables)), return_sequences=True))
-#     model.add(TimeDistributed(Dense(1)))
-#     model.compile(loss='mean_absolute_error', optimizer=optimizer)
-#     return model
-
-
-# # Grid Search
-# k = 5
-# cv = KFold(n_splits=k, shuffle=True, random_state=15)
-# Keras_estimator = KerasRegressor(build_fn=build_model_grid_lstm)
-#
-#
-#
-# param_grid_lstm = {
-#                     'epochs': [25],
-#                     # 'activation': ['selu', 'elu', 'relu', 'tanh', 'sigmoid'],  # linear,hard_sigmoid,softmax,softplus,softsign
-#                     # 'dense_layer_sizes': combination_layers(30, 31, 1),
-#                     'optimizer': ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
-#                 }
-#
-# grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid_lstm, n_jobs=-1, cv=cv,
-#                     scoring='neg_mean_absolute_error',
-#                     return_train_score=True, verbose=1)
-# grid_result = grid.fit(scaler_X_lstm_train2, y_lstm_train2)
-#
-# # Summary of results
-# print('Mean test score: {}'.format(np.mean(grid.cv_results_['mean_test_score'])))
-# print('Mean train score: {}'.format(np.mean(grid.cv_results_['mean_train_score'])))
-# print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 
 
 
