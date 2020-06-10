@@ -281,7 +281,7 @@ def correlation_matrix(df):
 
 
 # Plot correlation matrix
-correlation_matrix(df_train)
+correlation_matrix(df_train.loc[~((df_train['League'] == 'Liga NOS') & (df_train['Season'] == '2018/19'))])
 
 # Drop variable 'Goal diff' since it is very correlated w/ Points
 df_train = df_train.drop(columns='Goal_diff')
@@ -327,11 +327,12 @@ df_test.loc[(df_test['League'] == 'Super League') | (df_test['League'] == 'Jupil
 
 
 # Correlation analysis between transformed variables
-correlation_matrix(df_train)
+correlation_matrix(df_train.loc[~((df_train['League'] == 'Liga NOS') & (df_train['Season'] == '2018/19'))])
 
 # Data Standardization
-X_train = df_train.drop(columns=['Points', 'Team', 'Season', 'League'])
-y_train = df_train['Points']
+df_train2 = df_train.loc[~((df_train['League'] == 'Liga NOS') & (df_train['Season'] == '2018/19'))]
+X_train = df_train2.drop(columns=['Points', 'Team', 'Season', 'League'])
+y_train = df_train2['Points']
 
 df_league_games = df_test[['League', 'Team']]
 df_league_games = df_league_games.set_index('Team')
@@ -631,10 +632,10 @@ df_lstm = pd.concat([df_lstm, df_lstm_1920]).sort_index()
 X_lstm = df_lstm.drop(columns=['Points'])
 y_lstm = df_lstm[['Points']]
 
-X_lstm_train = X_lstm[114:]
-X_lstm_val = X_lstm[:114]
-y_lstm_train = y_lstm[114:]
-y_lstm_val = y_lstm[:114]
+X_lstm_train = X_lstm[126:]
+X_lstm_val = X_lstm[:126]
+y_lstm_train = y_lstm[126:]
+y_lstm_val = y_lstm[:126]
 
 # Feature Selection
 variables_lstm = ['Goals', 'Corners_p/goal_against', 'Corners', 'Shots_target', 'Total_cards_against',
@@ -658,14 +659,14 @@ scaler_X_lstm_val = pd.DataFrame(scaler.transform(X_lstm_val[variables_lstm]),
                                  columns=X_lstm_val[variables_lstm].columns, index=X_lstm_val.index)
 
 # Input data reshaping
-scaler_X_lstm = np.array(scaler_X_lstm).reshape(128, 3, 12)
-y_lstm = np.array(y_lstm).reshape(128, 3, 1)
+scaler_X_lstm = np.array(scaler_X_lstm).reshape(142, 3, 12)
+y_lstm = np.array(y_lstm).reshape(142, 3, 1)
 
-scaler_X_lstm_train = np.array(scaler_X_lstm_train).reshape(90, 3, 12)
-y_lstm_train = np.array(y_lstm_train).reshape(90, 3, 1)
+scaler_X_lstm_train = np.array(scaler_X_lstm_train).reshape(100, 3, 12)
+y_lstm_train = np.array(y_lstm_train).reshape(100, 3, 1)
 
-scaler_X_lstm_val = np.array(scaler_X_lstm_val).reshape(38, 3, 12)
-y_lstm_val = np.array(y_lstm_val).reshape(38, 3, 1)
+scaler_X_lstm_val = np.array(scaler_X_lstm_val).reshape(42, 3, 12)
+y_lstm_val = np.array(y_lstm_val).reshape(42, 3, 1)
 
 
 ## Create LSTM configurations
@@ -675,10 +676,10 @@ def build_model_lstm():
     model.add(LSTM(134, input_shape=(3, len(variables)), return_sequences=True, activation="sigmoid"))
     model.add(TimeDistributed(Dense(1)))
     model.compile(optimizer='Adam', loss='mse')
-    print(model.summary())
     return model
 
 modelstm = build_model_lstm()
+print(modelstm.summary())
 
 # Train LSTM
 modelstm.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2)
@@ -705,6 +706,10 @@ lstm_pred_1819 = lstm_pred.loc[lstm_pred['Season'] == '2018/19']
 lstm_pred_1819 = lstm_pred_1819.sort_values(by=['Points per Game'], ascending=False).drop(['Season'], axis=1)
 lstm_pred_1718 = lstm_pred.loc[lstm_pred['Season'] == '2017/18']
 lstm_pred_1718 = lstm_pred_1718.sort_values(by=['Points per Game'], ascending=False).drop(['Season'], axis=1)
+
+lstm_pred_1920 = pd.merge(lstm_pred_1920, final_classification[['Team', 'League', 'Matches Played']], how='left', on=['Team'])
+lstm_pred_1920['Points'] = lstm_pred_1920['Points per Game']*lstm_pred_1920['Matches Played']
+lstm_pred_1920 = lstm_pred_1920[['Team', 'League', 'Points per Game', 'Matches Played', 'Points']]
 
 ###############################################  OTHER VISUALIZATIONS  #################################################
 
