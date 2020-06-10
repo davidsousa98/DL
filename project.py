@@ -657,11 +657,7 @@ scaler_X_lstm_train = pd.DataFrame(scaler.transform(X_lstm_train[variables_lstm]
 scaler_X_lstm_val = pd.DataFrame(scaler.transform(X_lstm_val[variables_lstm]),
                                  columns=X_lstm_val[variables_lstm].columns, index=X_lstm_val.index)
 
-scaler_X_lstm = scaler_X_lstm[variables_lstm]
-scaler_X_lstm_train = scaler_X_lstm_train[variables_lstm]
-scaler_X_lstm_val = scaler_X_lstm_val[variables_lstm]
-
-
+# Input data reshaping
 scaler_X_lstm = np.array(scaler_X_lstm).reshape(128, 3, 12)
 y_lstm = np.array(y_lstm).reshape(128, 3, 1)
 
