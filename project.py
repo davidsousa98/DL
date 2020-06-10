@@ -189,7 +189,7 @@ for team in table_team_names:
         diff_names.append(team)
 diff_names = pd.DataFrame(sorted(diff_names))
 
-# Save pair of names into excel file
+# Import pair of names from excel file
 pair_names = pd.read_excel(r'./data/diff_names.xlsx', header=None)
 pair_names.columns = ["Squad", "Team"]
 
@@ -708,8 +708,9 @@ lstm_pred_1718 = lstm_pred.loc[lstm_pred['Season'] == '2017/18']
 lstm_pred_1718 = lstm_pred_1718.sort_values(by=['Points per Game'], ascending=False).drop(['Season'], axis=1)
 
 lstm_pred_1920 = pd.merge(lstm_pred_1920, final_classification[['Team', 'League', 'Matches Played']], how='left', on=['Team'])
-lstm_pred_1920['Points'] = lstm_pred_1920['Points per Game']*lstm_pred_1920['Matches Played']
+lstm_pred_1920['Points'] = round(lstm_pred_1920['Points per Game']*lstm_pred_1920['Matches Played'])
 lstm_pred_1920 = lstm_pred_1920[['Team', 'League', 'Points per Game', 'Matches Played', 'Points']]
+lstm_pred_1920.index += 1
 
 ###############################################  OTHER VISUALIZATIONS  #################################################
 
