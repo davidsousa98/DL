@@ -675,7 +675,7 @@ y_lstm_val = np.array(y_lstm_val).reshape(38, 3, 1)
 ## Create LSTM configurations
 reset_seeds()  # guarantee reproducibility
 model = models.Sequential()
-model.add(LSTM(150, input_shape=(3, len(variables)), return_sequences= True, activation="selu"))
+model.add(LSTM(134, input_shape=(3, len(variables)), return_sequences= True, activation="sigmoid"))
 model.add(TimeDistributed(Dense(1)))
 model.compile(loss='mse', optimizer='Adam')
 model.reset_states()
@@ -686,7 +686,7 @@ model.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2)
 
 # Model Evaluation
 scores_lstm_val = model.evaluate(scaler_X_lstm_val, y_lstm_val, verbose=0)
-print(scores_lstm_val)
+print('Validation MSE: ' , scores_lstm_val)
 
 # Fit to all the data
 model.fit(scaler_X_lstm, y_lstm)
