@@ -678,6 +678,7 @@ model = models.Sequential()
 model.add(LSTM(150, input_shape=(3, len(variables)), return_sequences= True, activation="selu"))
 model.add(TimeDistributed(Dense(1)))
 model.compile(loss='mse', optimizer='Adam')
+model.reset_states()
 print(model.summary())
 
 # Train LSTM
