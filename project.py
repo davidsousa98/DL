@@ -669,13 +669,16 @@ y_lstm_val = np.array(y_lstm_val).reshape(38, 3, 1)
 
 
 ## Create LSTM configurations
-reset_seeds()  # guarantee reproducibility
-modelstm = models.Sequential()
-modelstm.add(LSTM(134, input_shape=(3, len(variables)), return_sequences=True, activation="sigmoid"))
-modelstm.add(TimeDistributed(Dense(1)))
-modelstm.compile(loss='mse', optimizer='Adam')
-modelstm.reset_states()
-print(modelstm.summary())
+def build_model_lstm():
+    reset_seeds()
+    model = models.Sequential()
+    model.add(LSTM(134, input_shape=(3, len(variables)), return_sequences=True, activation="sigmoid"))
+    model.add(TimeDistributed(Dense(1)))
+    model.compile(optimizer='Adam', loss='mse')
+    print(model.summary())
+    return model
+
+modelstm = build_model_lstm()
 
 # Train LSTM
 modelstm.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2)
