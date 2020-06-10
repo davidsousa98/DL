@@ -1,5 +1,5 @@
 #############################################   SAMPLE  ################################################################
-import matplotlib
+# import matplotlib
 # matplotlib.use('TkAgg')
 
 import pandas as pd
@@ -688,7 +688,7 @@ model.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2)
 scores_lstm_val = model.evaluate(scaler_X_lstm_val, y_lstm_val, verbose=0)
 print(scores_lstm_val)
 
-# Fit to all the model
+# Fit to all the data
 model.fit(scaler_X_lstm, y_lstm)
 
 ## Predict Season 2019/20
