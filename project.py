@@ -670,25 +670,25 @@ y_lstm_val = np.array(y_lstm_val).reshape(38, 3, 1)
 
 ## Create LSTM configurations
 reset_seeds()  # guarantee reproducibility
-model = models.Sequential()
-model.add(LSTM(134, input_shape=(3, len(variables)), return_sequences=True, activation="sigmoid"))
-model.add(TimeDistributed(Dense(1)))
-model.compile(loss='mse', optimizer='Adam')
-model.reset_states()
-print(model.summary())
+modelstm = models.Sequential()
+modelstm.add(LSTM(134, input_shape=(3, len(variables)), return_sequences=True, activation="sigmoid"))
+modelstm.add(TimeDistributed(Dense(1)))
+modelstm.compile(loss='mse', optimizer='Adam')
+modelstm.reset_states()
+print(modelstm.summary())
 
 # Train LSTM
-model.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2)
+modelstm.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2)
 
 # Model Evaluation
-scores_lstm_val = model.evaluate(scaler_X_lstm_val, y_lstm_val, verbose=0)
+scores_lstm_val = modelstm.evaluate(scaler_X_lstm_val, y_lstm_val, verbose=0)
 print('Validation MSE: ' , scores_lstm_val)
 
 # Fit to all the data
-model.fit(scaler_X_lstm, y_lstm)
+modelstm.fit(scaler_X_lstm, y_lstm)
 
 ## Predict Season 2019/20
-lstm_pred = model.predict(scaler_X_lstm)
+lstm_pred = modelstm.predict(scaler_X_lstm)
 
 cols_names = ['Team', 'Season', 'e']
 index = pd.MultiIndex.from_product([range(x) for x in lstm_pred.shape], names=cols_names)
