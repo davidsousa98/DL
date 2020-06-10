@@ -682,11 +682,28 @@ modelstm = build_model_lstm()
 print(modelstm.summary())
 
 # Train LSTM
-modelstm.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2)
+callbacks_list_lstm = [keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=10)]
+
+history_lstm = modelstm.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2, validation_data= (scaler_X_lstm_val, y_lstm_val), callbacks=callbacks_list_lstm)
 
 # Model Evaluation
 scores_lstm_val = modelstm.evaluate(scaler_X_lstm_val, y_lstm_val, verbose=0)
-print('Validation MSE: ' , scores_lstm_val)
+print('Validation MSE: ' , round(scores_lstm_val*100, 2), '%')
+
+# Plot Training and Validation Loss
+plt.clf()
+history_dict = history_lstm.history
+mae_values = history_dict['loss']
+val_mae_values = history_dict['val_loss']
+epochs = range(0, len(history_dict['loss']))
+
+# plt.plot(epochs[2:], mae_values[2:], 'bo', label='Training mse')
+plt.plot(epochs[2:], val_mae_values[2:], 'b', label='Validation mse')
+plt.title('Validation mse')
+plt.xlabel('Epochs')
+plt.ylabel('Mean Square Error')
+plt.legend()
+plt.show()
 
 # Fit to all the data
 modelstm.fit(scaler_X_lstm, y_lstm)
