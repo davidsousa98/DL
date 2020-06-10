@@ -671,7 +671,7 @@ y_lstm_val = np.array(y_lstm_val).reshape(38, 3, 1)
 ## Create LSTM configurations
 reset_seeds()  # guarantee reproducibility
 model = models.Sequential()
-model.add(LSTM(134, input_shape=(3, len(variables)), return_sequences= True, activation="sigmoid"))
+model.add(LSTM(134, input_shape=(3, len(variables)), return_sequences=True, activation="sigmoid"))
 model.add(TimeDistributed(Dense(1)))
 model.compile(loss='mse', optimizer='Adam')
 model.reset_states()
