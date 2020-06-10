@@ -639,9 +639,9 @@ y_lstm_val = np.array(y_lstm_val).reshape(38, 3, 1)
 # create LSTM
 reset_seeds()  # guarantee reproducibility
 model = models.Sequential()
-model.add(LSTM(150, input_shape=(3, len(variables)), return_sequences= True, activation="selu"))
+model.add(LSTM(134, input_shape=(3, len(variables)), return_sequences= True, activation="sigmoid"))
 model.add(TimeDistributed(Dense(1)))
-model.compile(loss='mse', optimizer='Adam')
+model.compile(loss='mse', optimizer='adam')
 print(model.summary())
 
 # train LSTM
@@ -649,7 +649,7 @@ model.fit(scaler_X_lstm_train, y_lstm_train, epochs=100, verbose=2)
 
 # evaluate
 scores_lstm_val = model.evaluate(scaler_X_lstm_val, y_lstm_val, verbose=0)
-print(scores_lstm_val)
+print('Validation MSE: ' , scores_lstm_val)
 
 # Fit to all the model
 model.fit(scaler_X_lstm, y_lstm)
@@ -669,44 +669,6 @@ lstm_pred_1819 = lstm_pred.loc[lstm_pred['Season'] == '2018/19']
 lstm_pred_1819 = lstm_pred_1819.sort_values(by=['Points per Game'], ascending = False).drop(['Season'], axis = 1)
 lstm_pred_1718 = lstm_pred.loc[lstm_pred['Season'] == '2017/18']
 lstm_pred_1718 = lstm_pred_1718.sort_values(by=['Points per Game'], ascending = False).drop(['Season'], axis = 1)
-
-
-
-
-# callbacks_list = [keras.callbacks.EarlyStopping(monitor='val_mae', patience=7)]
-#
-# # Define model
-# def build_model_grid_lstm(dense_layer_sizes = [15], optimizer='RMSprop'):
-#     reset_seeds()
-#     model.add(LSTM(dense_layer_sizes[0], input_shape=(2, len(variables)), return_sequences=True))
-#     model.add(TimeDistributed(Dense(1)))
-#     model.compile(loss='mean_absolute_error', optimizer=optimizer)
-#     return model
-
-
-# # Grid Search
-# k = 5
-# cv = KFold(n_splits=k, shuffle=True, random_state=15)
-# Keras_estimator = KerasRegressor(build_fn=build_model_grid_lstm)
-#
-#
-#
-# param_grid_lstm = {
-#                     'epochs': [25],
-#                     # 'activation': ['selu', 'elu', 'relu', 'tanh', 'sigmoid'],  # linear,hard_sigmoid,softmax,softplus,softsign
-#                     # 'dense_layer_sizes': combination_layers(30, 31, 1),
-#                     'optimizer': ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
-#                 }
-#
-# grid = GridSearchCV(estimator=Keras_estimator, param_grid=param_grid_lstm, n_jobs=-1, cv=cv,
-#                     scoring='neg_mean_absolute_error',
-#                     return_train_score=True, verbose=1)
-# grid_result = grid.fit(scaler_X_lstm_train2, y_lstm_train2)
-#
-# # Summary of results
-# print('Mean test score: {}'.format(np.mean(grid.cv_results_['mean_test_score'])))
-# print('Mean train score: {}'.format(np.mean(grid.cv_results_['mean_train_score'])))
-# print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
 
 
 
